@@ -50,6 +50,7 @@ pub struct Field {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Enum {
+    pub title: Option<String>,
     pub variants: Vec<Variant>,
 }
 
@@ -140,6 +141,7 @@ parser!{
         struct_parser! {
             Enum {
                 _: string("enum").skip(blank()),
+                title: optional(str().skip(blank())),
                 _: char('{').skip(blank()),
                 variants: sep_by1(variant.skip(blank()), char(',').skip(blank())),
                 _: char('}').skip(blank())
@@ -267,6 +269,7 @@ fn test_type() {
         type_(),
         "enum { \"OK\", \"NG\"}",
         Type::Enum(Enum {
+            title: None,
             variants: vec![Variant("OK".into()), Variant("NG".into())],
         })
     );
@@ -328,10 +331,23 @@ fn test_enum() {
     assert_parsed!(
         enum_(),
         "enum { \"OK\", \"NG\"}",
-        Enum { variants: vec![Variant("OK".into()), Variant("NG".into())] }
+        Enum {
+            title: None,
+            variants: vec![Variant("OK".into()), Variant("NG".into())],
+        }
+    );
+
+    assert_parsed!(
+        enum_(),
+        "enum \"Result\" { \"OK\", \"NG\"}",
+        Enum {
+            title: Some("Result".to_string()),
+            variants: vec![Variant("OK".into()), Variant("NG".into())],
+        }
     );
 
     assert_parse_fail!(enum_(), "enum {}");
+    assert_parse_fail!(enum_(), "enum \"Result\" {}");
 }
 
 #[test]

@@ -48,7 +48,7 @@ fn compile_type(ty: Type) -> Map<String, Value> {
                 ("required".to_string(), Value::Array(required)),
             ]
         }
-        Enum(::parser::Enum { variants }) => {
+        Enum(::parser::Enum { title, variants }) => {
             let variants = variants.into_iter().map(|v| Value::String(v.0)).collect();
             vec![("enum".to_string(), Value::Array(variants))]
         }
