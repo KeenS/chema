@@ -17,10 +17,10 @@
 //! STRIING = "" ""
 //!
 
-use combine::{Parser, skip_many1, optional, sep_by1, sep_end_by1, ParseError, try};
+use combine::{Parser, ParseError, Stream};
+use combine::{skip_many, skip_many1, satisfy, optional, sep_by1, sep_end_by1, try};
 use combine::char::{alpha_num, letter, char, string, spaces};
 use combine::combinator::recognize;
-use combine::Stream;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AST(pub Vec<Item>);
@@ -83,7 +83,7 @@ parser!{
     fn ast[I]()(I) -> AST
         where [I: Stream<Item=char>]
     {
-        spaces().with(sep_end_by1(item(), spaces())).map(AST)
+        blank().with(sep_end_by1(item(), blank())).map(AST)
     }
 }
 
@@ -101,10 +101,10 @@ parser!{
     {
         struct_parser! {
             TypeDef {
-                _: string("type").skip(spaces()),
-                ident: ident().skip(spaces()),
-                _: char('=').skip(spaces()),
-                type_: type_().skip(spaces()),
+                _: string("type").skip(blank()),
+                ident: ident().skip(blank()),
+                _: char('=').skip(blank()),
+                type_: type_().skip(blank()),
                 _: char(';'),
             }
         }
@@ -115,15 +115,15 @@ parser!{
     fn struct_[I]()(I) -> Struct
         where [I: Stream<Item=char>]
     {
-        let field = (ident().skip(spaces()), char(':').skip(spaces()), type_())
+        let field = (ident().skip(blank()), char(':').skip(blank()), type_())
             .map(|(ident, _, type_)| Field {ident, type_});
 
         struct_parser! {
             Struct {
-                _: string("struct").skip(spaces()),
-                title: optional(str().skip(spaces())),
-                _: char('{').skip(spaces()),
-                fields: sep_by1(field.skip(spaces()), char(',').skip(spaces())),
+                _: string("struct").skip(blank()),
+                title: optional(str().skip(blank())),
+                _: char('{').skip(blank()),
+                fields: sep_by1(field.skip(blank()), char(',').skip(blank())),
                 _: char('}'),
             }
         }
@@ -139,10 +139,10 @@ parser!{
 
         struct_parser! {
             Enum {
-                _: string("enum").skip(spaces()),
-                _: char('{').skip(spaces()),
-                variants: sep_by1(variant.skip(spaces()), char(',').skip(spaces())),
-                _: char('}').skip(spaces())
+                _: string("enum").skip(blank()),
+                _: char('{').skip(blank()),
+                variants: sep_by1(variant.skip(blank()), char(',').skip(blank())),
+                _: char('}').skip(blank())
             }
         }
     }
@@ -160,7 +160,7 @@ parser!{
             try(string("number").map(|_| Type::Number)),
             try(string("string").map(|_| Type::String)),
             try(string("integer").map(|_| Type::Integer)),
-            try((char('[').skip(spaces()), type_(), spaces().with(char(']'))).map(|(_, ty, _)| Type::Array(Box::new(ty)))),
+            try((char('[').skip(blank()), type_(), blank().with(char(']'))).map(|(_, ty, _)| Type::Array(Box::new(ty)))),
             try(struct_().map(Type::Struct)),
             try(enum_().map(Type::Enum)),
             try(ident().map(Type::Ident))
@@ -187,6 +187,23 @@ parser!{
         // FIXME
         (char('"'), ident(), char('"')).map(|(_, ident, _)| ident.0)
     }
+}
+
+parser! {
+    fn blank[I]()(I) -> ()
+        where [I: Stream<Item=char>]
+    {
+        spaces().skip(optional(comment().skip(optional(spaces()))))
+    }
+}
+
+parser! {
+    fn comment[I]()(I) -> ()
+        where [I: Stream<Item=char>]
+    {
+        (string("//"), skip_many(satisfy(|c| c != '\n'))).map(|_|())
+    }
+
 }
 
 
@@ -344,6 +361,25 @@ fn test_typedef() {
                 ],
             }),
         }
+    );
+}
+
+#[test]
+fn test_blank() {
+    assert_parsed!(
+        blank(),
+        "  
+
+",
+        ()
+    );
+
+    assert_parsed!(
+        blank(),
+        "
+// this is comment
+",
+        ()
     );
 }
 
