@@ -19,7 +19,7 @@
 
 use combine::{Parser, ParseError, Stream};
 use combine::{skip_many, skip_many1, satisfy, optional, sep_by1, sep_end_by1, try};
-use combine::char::{alpha_num, letter, char, string, spaces};
+use combine::char::{char, string, spaces};
 use combine::combinator::recognize;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -175,7 +175,8 @@ parser!{
     fn ident[I]()(I) -> Ident
         where [I: Stream<Item=char>]
     {
-        recognize(letter().with(skip_many1(alpha_num())))
+        recognize(satisfy(|c:char| c.is_alphabetic() || "_".contains(c))
+                  .with(skip_many1(satisfy(|c:char| c.is_alphanumeric() || "_".contains(c)))))
             .map(|s: String| Ident(s))
     }
 }
@@ -225,7 +226,9 @@ fn test_ident() {
 
     assert_parsed!(ident(), "ident1  ", Ident("ident1".into()));
 
-    assert_parse_fail!(ident(), "0ident1  ");
+    assert_parsed!(ident(), "_ident1_  ", Ident("_ident1_".into()));
+
+    assert_parse_fail!(ident(), "0ident1");
 }
 
 #[test]
