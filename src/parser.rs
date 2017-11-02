@@ -7,13 +7,13 @@
 //! STRUCT = "struct" STRING? "{" (FIELD ",")+ "}"
 //! FIELD = IDENT ":" TYPE
 //!
-//! ENUM = "enum" "{" (VARIANT",")+ "}"
+//! ENUM = "enum" STRING? "{" (VARIANT",")+ "}"
 //! VARIANT = STRING
 //!
 //! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
 //!      | IDENT | "[" TYPE "]" | STRUCT | ENUM
 //!
-//! IDENT = [a-zA-Z][a-zA-Z0-9]*
+//! IDENT = [a-zA-Z_][a-zA-Z0-9_]*
 //! STRIING = "" ""
 //!
 
