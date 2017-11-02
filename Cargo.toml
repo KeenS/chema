@@ -1,0 +1,12 @@
+[package]
+authors = ["Sunrin SHIMURA (keen) <3han5chou7@gmail.com>"]
+name = "json-schema-dsl"
+version = "0.1.0"
+
+[dependencies]
+combine = "2.5.2"
+env_logger = "0.4.3"
+log = "0.3.8"
+serde = "1.0.17"
+serde_derive = "1.0.17"
+serde_json = "1.0.5"
