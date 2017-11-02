@@ -17,7 +17,7 @@
 //! STRIING = "" ""
 //!
 
-use combine::{Parser, ParseError, Stream};
+use combine::{Parser, ParseError, Stream, State};
 use combine::{skip_many, skip_many1, satisfy, optional, sep_by1, sep_end_by1, try};
 use combine::char::{char, string, spaces};
 use combine::combinator::recognize;
@@ -76,8 +76,8 @@ pub enum Type {
 pub struct Ident(pub String);
 
 
-pub fn parse(input: &str) -> Result<AST, ParseError<&str>> {
-    ast().parse(input).map(|r| r.0)
+pub fn parse(input: &str) -> Result<AST, ParseError<State<&str>>> {
+    ast().parse(State::new(input)).map(|r| r.0)
 }
 
 parser!{
