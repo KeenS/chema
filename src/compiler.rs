@@ -42,15 +42,23 @@ fn compile_type(ty: Type) -> Map<String, Value> {
                 .into_iter()
                 .map(|f| (f.ident.0, Value::Object(compile_type(f.type_))))
                 .collect();
-            vec![
+            let mut vec = vec![
                 ("type".to_string(), Value::String("object".to_string())),
                 ("properties".to_string(), Value::Object(properties)),
                 ("required".to_string(), Value::Array(required)),
-            ]
+            ];
+            if let Some(title) = title {
+                vec.push(("title".to_string(), Value::String(title)));
+            }
+            vec
         }
         Enum(::parser::Enum { title, variants }) => {
             let variants = variants.into_iter().map(|v| Value::String(v.0)).collect();
-            vec![("enum".to_string(), Value::Array(variants))]
+            let mut vec = vec![("enum".to_string(), Value::Array(variants))];
+            if let Some(title) = title {
+                vec.push(("title".to_string(), Value::String(title)));
+            }
+            vec
         }
         Option(ty) => {
             let mut map = compile_type(*ty);
