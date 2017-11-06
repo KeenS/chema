@@ -11,7 +11,7 @@
 //! VARIANT = STRING
 //!
 //! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
-//!      | IDENT | "[" TYPE "]" | STRUCT | ENUM
+//!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
 //!
 //! IDENT = [a-zA-Z_][a-zA-Z0-9_]*
 //! STRIING = "" ""
