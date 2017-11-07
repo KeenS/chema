@@ -135,7 +135,7 @@ parser!{
                 title: optional(str().skip(blank())),
                 fields: between(char('{').skip(blank()),
                                 char('}'),
-                                sep_by1(field.skip(blank()), char(',').skip(blank()))),
+                                sep_end_by1(field.skip(blank()), char(',').skip(blank()))),
             }
         }
     }
@@ -156,7 +156,7 @@ parser!{
                 title: optional(str().skip(blank())),
                 variants: between(char('{').skip(blank()),
                                   char('}'),
-                                  sep_by1(variant.skip(blank()), char(',').skip(blank())))
+                                  sep_end_by1(variant.skip(blank()), char(',').skip(blank())))
             }
         }
     }
@@ -342,6 +342,24 @@ mod test {
 
         assert_parsed!(
             struct_(),
+            "struct {id: integer, name: string,}",
+            Struct {
+                title: None,
+                fields: vec![
+                    Field {
+                        ident: Ident("id".into()),
+                        type_: Type::Integer,
+                    },
+                    Field {
+                        ident: Ident("name".into()),
+                        type_: Type::String,
+                    },
+                ],
+            }
+        );
+
+        assert_parsed!(
+            struct_(),
             "struct \"User\" {id: integer, name: string}",
             Struct {
                 title: Some("User".into()),
@@ -367,6 +385,15 @@ mod test {
         assert_parsed!(
             enum_(),
             "enum { \"OK\", \"NG\"}",
+            Enum {
+                title: None,
+                variants: vec![Variant("OK".into()), Variant("NG".into())],
+            }
+        );
+
+        assert_parsed!(
+            enum_(),
+            "enum { \"OK\", \"NG\",}",
             Enum {
                 title: None,
                 variants: vec![Variant("OK".into()), Variant("NG".into())],
