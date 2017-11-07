@@ -15,13 +15,13 @@
 //!      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")"
 //!
 //! IDENT = [a-zA-Z_][a-zA-Z0-9_]*
-//! STRIING = "" ""
+//! STRIING = "\"" ([^"\\]|\.)* "\""
 //!
 
 
 
 use combine::{Parser, ParseError, Stream, State};
-use combine::{skip_many, satisfy, optional, sep_by1, sep_end_by1, try, between};
+use combine::{skip_many, satisfy, optional, sep_by1, sep_end_by1, try, between, any, many};
 use combine::char::{char, string, spaces};
 use combine::combinator::recognize;
 
@@ -241,10 +241,9 @@ parser!{
     fn str[I]()(I) -> String
         where [I: Stream<Item=char>]
     {
-        // FIXME
-        (char('"'), ident(), char('"'))
+        between(char('"'), char('"'),
+                many(char('\\').with(any()).or(satisfy(|c:char| c != '"'))))
             .message("string literal")
-            .map(|(_, ident, _)| ident.0)
     }
 }
 
@@ -285,6 +284,25 @@ mod test {
     }
 
     #[test]
+    fn test_blank() {
+        assert_parsed!(
+            blank(),
+            "  
+
+",
+            ()
+        );
+
+        assert_parsed!(
+            blank(),
+            "
+// this is comment
+",
+            ()
+        );
+    }
+
+    #[test]
     fn test_ident() {
         assert_parsed!(ident(), "ident1", Ident("ident1".into()));
 
@@ -293,6 +311,79 @@ mod test {
         assert_parsed!(ident(), "_ident1_  ", Ident("_ident1_".into()));
 
         assert_parse_fail!(ident(), "0ident1");
+    }
+
+    #[test]
+    fn test_str() {
+        assert_parsed!(str(), r#""""#, "".into());
+        assert_parsed!(str(), r#""abc""#, "abc".into());
+        assert_parsed!(str(), r#""abc\"def\"\\""#, "abc\"def\"\\".into());
+    }
+
+    #[test]
+    fn test_struct() {
+        assert_parsed!(
+            struct_(),
+            "struct {id: integer, name: string}",
+            Struct {
+                title: None,
+                fields: vec![
+                    Field {
+                        ident: Ident("id".into()),
+                        type_: Type::Integer,
+                    },
+                    Field {
+                        ident: Ident("name".into()),
+                        type_: Type::String,
+                    },
+                ],
+            }
+        );
+
+        assert_parsed!(
+            struct_(),
+            "struct \"User\" {id: integer, name: string}",
+            Struct {
+                title: Some("User".into()),
+                fields: vec![
+                    Field {
+                        ident: Ident("id".into()),
+                        type_: Type::Integer,
+                    },
+                    Field {
+                        ident: Ident("name".into()),
+                        type_: Type::String,
+                    },
+                ],
+            }
+        );
+
+        assert_parse_fail!(struct_(), "struct {}");
+        assert_parse_fail!(struct_(), "struct \"User\" {}");
+    }
+
+    #[test]
+    fn test_enum() {
+        assert_parsed!(
+            enum_(),
+            "enum { \"OK\", \"NG\"}",
+            Enum {
+                title: None,
+                variants: vec![Variant("OK".into()), Variant("NG".into())],
+            }
+        );
+
+        assert_parsed!(
+            enum_(),
+            "enum \"Result\" { \"OK\", \"NG\"}",
+            Enum {
+                title: Some("Result".to_string()),
+                variants: vec![Variant("OK".into()), Variant("NG".into())],
+            }
+        );
+
+        assert_parse_fail!(enum_(), "enum {}");
+        assert_parse_fail!(enum_(), "enum \"Result\" {}");
     }
 
     #[test]
@@ -442,73 +533,6 @@ mod test {
         );
     }
 
-
-    #[test]
-    fn test_struct() {
-        assert_parsed!(
-            struct_(),
-            "struct {id: integer, name: string}",
-            Struct {
-                title: None,
-                fields: vec![
-                    Field {
-                        ident: Ident("id".into()),
-                        type_: Type::Integer,
-                    },
-                    Field {
-                        ident: Ident("name".into()),
-                        type_: Type::String,
-                    },
-                ],
-            }
-        );
-
-        assert_parsed!(
-            struct_(),
-            "struct \"User\" {id: integer, name: string}",
-            Struct {
-                title: Some("User".into()),
-                fields: vec![
-                    Field {
-                        ident: Ident("id".into()),
-                        type_: Type::Integer,
-                    },
-                    Field {
-                        ident: Ident("name".into()),
-                        type_: Type::String,
-                    },
-                ],
-            }
-        );
-
-        assert_parse_fail!(struct_(), "struct {}");
-        assert_parse_fail!(struct_(), "struct \"User\" {}");
-    }
-
-    #[test]
-    fn test_enum() {
-        assert_parsed!(
-            enum_(),
-            "enum { \"OK\", \"NG\"}",
-            Enum {
-                title: None,
-                variants: vec![Variant("OK".into()), Variant("NG".into())],
-            }
-        );
-
-        assert_parsed!(
-            enum_(),
-            "enum \"Result\" { \"OK\", \"NG\"}",
-            Enum {
-                title: Some("Result".to_string()),
-                variants: vec![Variant("OK".into()), Variant("NG".into())],
-            }
-        );
-
-        assert_parse_fail!(enum_(), "enum {}");
-        assert_parse_fail!(enum_(), "enum \"Result\" {}");
-    }
-
     #[test]
     fn test_typedef() {
         assert_parsed!(
@@ -593,25 +617,6 @@ mod test {
                     ],
                 }),
             }
-        );
-    }
-
-    #[test]
-    fn test_blank() {
-        assert_parsed!(
-            blank(),
-            "  
-
-",
-            ()
-        );
-
-        assert_parsed!(
-            blank(),
-            "
-// this is comment
-",
-            ()
         );
     }
 
