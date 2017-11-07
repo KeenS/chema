@@ -12,10 +12,13 @@
 //!
 //! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
 //!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
+//!      | TYPE "&" TYPE |  TYPE "|" TYPE
 //!
 //! IDENT = [a-zA-Z_][a-zA-Z0-9_]*
 //! STRIING = "" ""
 //!
+
+
 
 use combine::{Parser, ParseError, Stream, State};
 use combine::{skip_many, satisfy, optional, sep_by1, sep_end_by1, try, between};
@@ -70,6 +73,8 @@ pub enum Type {
     Struct(Struct),
     Enum(Enum),
     Option(Box<Type>),
+    And(Vec<Type>),
+    Or(Vec<Type>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -158,10 +163,9 @@ parser!{
 }
 
 parser!{
-    fn type_[I]()(I) -> Type
+    fn type0[I]()(I) -> Type
         where [I: Stream<Item=char>]
     {
-
         choice!(
             try(string("null").map(|_| Type::Null)),
             try(string("boolean").map(|_| Type::Boolean)),
@@ -172,11 +176,50 @@ parser!{
             try((char('[').skip(blank()), type_(), blank().with(char(']'))).map(|(_, ty, _)| Type::Array(Box::new(ty)))),
             try(struct_().map(Type::Struct)),
             try(enum_().map(Type::Enum)),
-            try(ident().map(Type::Ident))
-        ).and(optional(char('?'))).map(|(ty, opt)| match opt {
-            Some(_) => Type::Option(Box::new(ty)),
-            None => ty
-        })
+            ident().map(Type::Ident)
+        )
+    }
+}
+
+parser!{
+    fn type1[I]()(I) -> Type
+        where [I: Stream<Item=char>]
+    {
+
+        choice!(
+            try(type0().skip(char('?')).map(|ty| Type::Option(Box::new(ty)))),
+            type0()
+        )
+    }
+}
+
+parser! {
+    fn type2[I]()(I) -> Type
+        where [I: Stream<Item=char>]
+    {
+        let shift = |item: Type,  mut vec: Vec<Type>|  {
+            vec.insert(0, item);
+            vec
+        };
+        choice!(
+            try((type1().skip(blank()).skip(string("&").skip(blank())), sep_by1(type1().skip(blank())
+                            , string("&").skip(blank())
+            ))
+                .map(|(ty, tys)| Type::And(shift(ty, tys)))),
+            try((type1().skip(blank()).skip(string("|").skip(blank())), sep_by1(type1().skip(blank())
+                            , string("|").skip(blank())
+            ))
+                .map(|(ty, tys)| Type::Or (shift(ty, tys)))),
+            type1()
+        )
+    }
+}
+
+parser!{
+    fn type_[I]()(I) -> Type
+        where [I: Stream<Item=char>]
+    {
+        type2()
     }
 }
 
@@ -297,6 +340,37 @@ mod test {
             Type::Option(Box::new(
                 Type::Array(Box::new(Type::Option(Box::new(Type::Integer)))),
             ))
+        );
+
+        assert_parsed!(
+            type_(),
+            "integer | string",
+            Type::Or(vec![Type::Integer, Type::String])
+        );
+
+        assert_parsed!(
+            type_(),
+            "struct {id: integer} & struct {name: string}",
+            Type::And(vec![
+                Type::Struct(Struct {
+                    title: None,
+                    fields: vec![
+                        Field {
+                            ident: Ident("id".into()),
+                            type_: Type::Integer,
+                        },
+                    ],
+                }),
+                Type::Struct(Struct {
+                    title: None,
+                    fields: vec![
+                        Field {
+                            ident: Ident("name".into()),
+                            type_: Type::String,
+                        },
+                    ],
+                }),
+            ])
         );
     }
 

@@ -66,6 +66,20 @@ fn compile_type(ty: Type) -> Map<String, Value> {
             map.insert("nullable".into(), Value::Bool(true));
             map.into_iter().collect()
         }
+        And(tys) => {
+            let tys = tys.into_iter()
+                .map(compile_type)
+                .map(Value::Object)
+                .collect::<Vec<_>>();
+            vec![("allOf".into(), Value::Array(tys))]
+        }
+        Or(tys) => {
+            let tys = tys.into_iter()
+                .map(compile_type)
+                .map(Value::Object)
+                .collect::<Vec<_>>();
+            vec![("anyOf".into(), Value::Array(tys))]
+        }
     };
     kvs.into_iter().collect()
 }

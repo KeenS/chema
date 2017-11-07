@@ -12,7 +12,7 @@ pub mod parser;
 pub mod compiler;
 
 use std::env::args;
-use std::io::{Read, BufRead, BufReader, stdout};
+use std::io::{Read, BufReader, stdout};
 use std::fs::File;
 
 fn main() {
