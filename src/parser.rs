@@ -12,7 +12,7 @@
 //!
 //! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
 //!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
-//!      | TYPE "&" TYPE |  TYPE "|" TYPE
+//!      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")"
 //!
 //! IDENT = [a-zA-Z_][a-zA-Z0-9_]*
 //! STRIING = "" ""
@@ -173,7 +173,10 @@ parser!{
             try(string("number").map(|_| Type::Number)),
             try(string("string").map(|_| Type::String)),
             try(string("integer").map(|_| Type::Integer)),
-            try((char('[').skip(blank()), type_(), blank().with(char(']'))).map(|(_, ty, _)| Type::Array(Box::new(ty)))),
+            try((char('[').skip(blank()), type_(), blank().with(char(']')))
+                .map(|(_, ty, _)| Type::Array(Box::new(ty)))),
+            try((char('(').skip(blank()), type_(), blank().with(char(')')))
+                .map(|(_, ty, _)| ty)),
             try(struct_().map(Type::Struct)),
             try(enum_().map(Type::Enum)),
             ident().map(Type::Ident)
@@ -293,20 +296,48 @@ mod test {
     }
 
     #[test]
-    fn test_type() {
+    fn test_type_null() {
         assert_parsed!(type_(), "null", Type::Null);
+    }
+
+    #[test]
+    fn test_type_boolean() {
         assert_parsed!(type_(), "boolean", Type::Boolean);
+    }
+
+    #[test]
+    fn test_type_object() {
         assert_parsed!(type_(), "object", Type::Object);
+    }
+
+    #[test]
+    fn test_type_number() {
         assert_parsed!(type_(), "number", Type::Number);
+
+    }
+
+    #[test]
+    fn test_type_string() {
         assert_parsed!(type_(), "string", Type::String);
+    }
+
+    #[test]
+    fn test_type_integer() {
         assert_parsed!(type_(), "integer", Type::Integer);
+    }
+
+    #[test]
+    fn test_type_ident() {
         assert_parsed!(type_(), "user", Type::Ident(Ident("user".into())));
+    }
+
+    #[test]
+    fn test_type_array() {
         assert_parsed!(type_(), "[string]", Type::Array(Box::new(Type::String)));
-        assert_parsed!(
-            type_(),
-            "[[string]]",
-            Type::Array(Box::new(Type::Array(Box::new(Type::String))))
-        );
+    }
+
+    #[test]
+    fn test_type_struct() {
         assert_parsed!(
             type_(),
             "struct {id: integer, name: string}",
@@ -324,6 +355,10 @@ mod test {
                 ],
             })
         );
+    }
+
+    #[test]
+    fn test_type_enum() {
         assert_parsed!(
             type_(),
             "enum { \"OK\", \"NG\"}",
@@ -332,22 +367,24 @@ mod test {
                 variants: vec![Variant("OK".into()), Variant("NG".into())],
             })
         );
+    }
 
+    #[test]
+    fn test_type_optional() {
         assert_parsed!(type_(), "integer?", Type::Option(Box::new(Type::Integer)));
-        assert_parsed!(
-            type_(),
-            "[integer?]?",
-            Type::Option(Box::new(
-                Type::Array(Box::new(Type::Option(Box::new(Type::Integer)))),
-            ))
-        );
+    }
 
+    #[test]
+    fn test_type_or() {
         assert_parsed!(
             type_(),
             "integer | string",
             Type::Or(vec![Type::Integer, Type::String])
         );
+    }
 
+    #[test]
+    fn test_type_and() {
         assert_parsed!(
             type_(),
             "struct {id: integer} & struct {name: string}",
@@ -370,6 +407,37 @@ mod test {
                         },
                     ],
                 }),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_type_paren() {
+        assert_parsed!(type_(), "(integer)", Type::Integer);
+    }
+
+    #[test]
+    fn test_type() {
+        assert_parsed!(
+            type_(),
+            "[[string]]",
+            Type::Array(Box::new(Type::Array(Box::new(Type::String))))
+        );
+
+        assert_parsed!(
+            type_(),
+            "[integer?]?",
+            Type::Option(Box::new(
+                Type::Array(Box::new(Type::Option(Box::new(Type::Integer)))),
+            ))
+        );
+
+        assert_parsed!(
+            type_(),
+            "(integer | string | null) & sometype",
+            Type::And(vec![
+                Type::Or(vec![Type::Integer, Type::String, Type::Null]),
+                Type::Ident(Ident("sometype".into())),
             ])
         );
     }
