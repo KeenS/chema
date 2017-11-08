@@ -18,7 +18,7 @@
 //! STRIING = "\"" ([^"\\]|\.)* "\""
 //!
 
-
+use Config;
 
 use combine::{Parser, ParseError, Stream, State};
 use combine::{skip_many, satisfy, optional, sep_by1, sep_end_by1, try, between, any, many};
@@ -81,7 +81,7 @@ pub enum Type {
 pub struct Ident(pub String);
 
 
-pub fn parse(input: &str) -> Result<AST, ParseError<State<&str>>> {
+pub fn parse<'cfg, 'a>(_: &'cfg Config, input: &'a str) -> Result<AST, ParseError<State<&'a str>>> {
     ast().parse(State::new(input)).map(|r| r.0)
 }
 
