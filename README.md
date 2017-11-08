@@ -1,12 +1,13 @@
 
 
 ```
+/// id type
 type id = integer;
 
 type user = struct "User" {
     /// unique id of the user
     id: id,
-    name: Option<string>,
+    name: string?,
     type: enum {"admin", "writer", "reader"},
     SNSs: [string],
 };
@@ -39,9 +40,11 @@ $ cargo run etc/test.jsd
       "id",
       "members"
     ],
+    "title": "Group",
     "type": "object"
   },
   "id": {
+    "description": "id type",
     "type": "integer"
   },
   "user": {
@@ -53,7 +56,8 @@ $ cargo run etc/test.jsd
         "type": "array"
       },
       "id": {
-        "$ref": "#/definition/id"
+        "$ref": "#/definition/id",
+        "description": "unique id of the user"
       },
       "name": {
         "nullable": true,
@@ -73,7 +77,9 @@ $ cargo run etc/test.jsd
       "type",
       "SNSs"
     ],
+    "title": "User",
     "type": "object"
   }
 }
+
 ```

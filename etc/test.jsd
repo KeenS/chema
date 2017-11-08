@@ -1,3 +1,4 @@
+/// id type
 type id = integer;
 
 type user = struct "User" {
@@ -5,10 +6,10 @@ type user = struct "User" {
     id: id,
     name: string?,
     type: enum {"admin", "writer", "reader"},
-    SNSs: [string]
+    SNSs: [string],
 };
 
 type group = struct "Group" {
   id: id,
-  members: [user]
+  members: [user],
 };
