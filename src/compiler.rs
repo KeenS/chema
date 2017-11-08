@@ -39,7 +39,7 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             vec![
                 (
                     "$ref".to_string(),
-                    Value::String(format!("#/definition/{}", i))
+                    Value::String(format!("#/definitions/{}", i))
                 ),
             ]
         }
