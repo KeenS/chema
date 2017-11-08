@@ -1,5 +1,5 @@
 [root]
-name = "json-schema-dsl"
+name = "chema"
 version = "0.1.0"
 dependencies = [
  "combine 2.5.2 (registry+https://github.com/rust-lang/crates.io-index)",

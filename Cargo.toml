@@ -1,6 +1,6 @@
 [package]
 authors = ["Sunrin SHIMURA (keen) <3han5chou7@gmail.com>"]
-name = "json-schema-dsl"
+name = "chema"
 version = "0.1.0"
 
 [dependencies]
