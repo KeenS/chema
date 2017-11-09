@@ -1,8 +1,8 @@
-/// id type
+/** id type */
 type id = integer;
 
 type user = struct "User" {
-    /// unique id of the user
+    /** unique id of the user */
     id: id,
     name: string?,
     type: enum {"admin", "writer", "reader"},

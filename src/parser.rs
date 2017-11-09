@@ -17,8 +17,8 @@
 //! IDENT = [a-zA-Z_][a-zA-Z0-9_]*
 //! STRIING = "\"" ([^"\\]|\.)* "\""
 //!
-//! COMMENT = "//" [^\n] "\n"
-//! DOC_COMMENT = "///" [^\n] "\n"
+//! COMMENT = "//" any "\n" | "/*" any "*/"
+//! DOC_COMMENT = "/**" any "*/"
 
 
 
@@ -289,10 +289,14 @@ parser! {
     fn comment[I]()(I) -> ()
         where [I: Stream<Item=char>]
     {
-        between(string("//").skip(not_followed_by(char('/'))),
-                newline(),
-                skip_many(satisfy(|c| c != '\n'))).map(|_| ())
-            .message("comment")
+        let slasla = between(string("//"),
+                             newline(),
+                             skip_many(satisfy(|c| c != '\n'))).map(|_| ())
+            .message("comment");
+        let slaaster = between(string("/*").skip(not_followed_by(char('*'))), string("*/"),
+                               skip_many(satisfy(|c| c != '*')
+                                         .or(try(char('*').skip(not_followed_by(char('/')))))));
+        try(slasla).or(slaaster)
     }
 
 }
@@ -304,7 +308,7 @@ parser! {
         P: Parser<Input = I>,
         I: Stream<Item=char>]
     {
-        optional(doc_comments())
+        optional(doc_comments().skip(blank()))
             .and(p)
             .map(|(doc, res)| {
                 Annot {
@@ -317,29 +321,30 @@ parser! {
 }
 
 
+fn leading_aster(s: &str) -> &str {
+    match s.find("*") {
+        None => s,
+        Some(i) => {
+            if s[..i].chars().all(|c| c.is_whitespace()) {
+                &s[(i + 1)..]
+            } else {
+                s
+            }
+        }
+    }
+}
+
 parser! {
     fn doc_comments[I]()(I) -> String
         where [I: Stream<Item=char>]
     {
-        sep_end_by1::<Vec<_>,_, _>(doc_comment(), blank())
-            .map(|strs| strs.join(" "))
+        between(string("/**"), string("*/"),
+                recognize(skip_many(satisfy(|c| c != '*')
+                                    .or(try(char('*').skip(not_followed_by(char('/'))))))))
+            .map(|s: String| s.trim().lines().map(leading_aster).collect::<Vec<&str>>().join("\n"))
     }
 
 }
-
-parser! {
-    fn doc_comment[I]()(I) -> String
-        where [I: Stream<Item=char>]
-    {
-        between(string("///").skip(not_followed_by(char('/'))).skip(skip_many(char(' '))),
-                newline(),
-                recognize(skip_many(satisfy(|c| c != '\n'))))
-            .message("doc comment")
-    }
-
-}
-
-
 
 #[cfg(test)]
 mod test {
@@ -391,66 +396,33 @@ mod test {
             let input = "/// doc comments aren't blank";
             assert_parsed!(blank(), input, (), input);
         }
+
+        assert_parsed!(blank(), "/* comment */", ());
+        assert_parsed!(blank(), "/* comment * comment */", ());
+        assert_parsed!(blank(), "/* comment * / comment */", ());
+        assert_parsed!(blank(), "/* comment /**/", ());
     }
 
     #[test]
     fn test_doc_comments() {
-        assert_parsed!(
-            doc_comments(),
-            r#"/// single line
-"#,
-            "single line".into()
-        );
+        assert_parsed!(doc_comments(), r#"/**single line*/"#, "single line".into());
 
-        assert_parsed!(
-            doc_comments(),
-            r#"///nospace
-"#,
-            "nospace".into()
-        );
-
-        assert_parsed_partial!(
-            doc_comments(),
-            r#"/// doc
-               other data
-"#,
-            "doc".into()
-        );
+        assert_parsed_partial!(doc_comments(), r#"/** doc */ other data"#, "doc".into());
 
 
         assert_parsed!(
             doc_comments(),
-            r#"/// multiple
-/// line
-"#,
-            "multiple line".into()
+            r#"/** multiple
+line */"#,
+            "multiple\nline".into()
         );
 
         assert_parsed!(
             doc_comments(),
-            r#"/// multiple
-             /// line
-"#,
-            "multiple line".into()
-        );
-
-        assert_parsed!(
-            doc_comments(),
-            r#"/// separated
-
-/// line
-"#,
-            "separated line".into()
-        );
-
-        assert_parsed!(
-            doc_comments(),
-            r#"/// blank
-///
-/// line
-"#,
-            // TODO: more intuitional specification
-            "blank  line".into()
+            r#"/** multiple
+                * line
+                */"#,
+            "multiple\n line".into()
         );
     }
 
@@ -513,9 +485,9 @@ mod test {
 
         assert_parsed!(
             struct_(),
-            "/// doc
+            "/** doc */
 struct {
-  /// doc
+  /** doc */
   id: integer,
   name: string,
 }",
@@ -584,7 +556,7 @@ struct {
         );
         assert_parsed!(
             enum_(),
-            "/// doc
+            "/** doc */
 enum { \"OK\", \"NG\",}",
             Annot {
                 t: (Enum {
@@ -789,9 +761,9 @@ enum { \"OK\", \"NG\",}",
 
         assert_parsed!(
             typedef(),
-            r#"/// This is User
+            r#"/** This is User */
 type user = struct "User" {
-  /// This is id
+  /** This is id */
   id: id,
   // comment is ignored
   name: string,
