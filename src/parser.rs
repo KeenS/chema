@@ -2,7 +2,11 @@
 //! ITEMS = ITEM+
 //! ITEM = TYPEDEF
 //!
-//! TYPEDEF = "type" IDENT "=" TYPE
+//! TYPEDEF = "type" IDENT "=" TYPE ";"
+//!
+//! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
+//!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
+//!      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")"
 //!
 //! STRUCT = "struct" STRING? "{" (FIELD ",")+ "}"
 //! FIELD = IDENT ":" TYPE
@@ -10,13 +14,13 @@
 //! ENUM = "enum" STRING? "{" (VARIANT",")+ "}"
 //! VARIANT = STRING
 //!
-//! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
-//!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
-//!      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")"
-//!
 //! IDENT = [a-zA-Z_][a-zA-Z0-9_]*
 //! STRIING = "\"" ([^"\\]|\.)* "\""
 //!
+//! COMMENT = "//" [^\n] "\n"
+//! DOC_COMMENT = "///" [^\n] "\n"
+
+
 
 use Config;
 
