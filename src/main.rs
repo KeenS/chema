@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate log;
 extern crate env_logger;
-#[macro_use]
-extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
@@ -11,6 +9,9 @@ extern crate combine;
 #[macro_use]
 extern crate structopt_derive;
 extern crate structopt;
+extern crate regex;
+#[macro_use]
+extern crate lazy_static;
 
 pub mod parser;
 pub mod compiler;

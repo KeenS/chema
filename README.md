@@ -1,18 +1,22 @@
 
 
 ```
-/// id type
+/** id type */
 type id = integer;
 
-type user = struct "User" {
-    /// unique id of the user
+/** @title User */
+type user = struct {
+    /** unique id of the user */
     id: id,
     name: string?,
     type: enum {"admin", "writer", "reader"},
     SNSs: [string],
 };
-
-type group = struct "Group" {
+/**
+ * @title Group
+ * this expresses a group of users
+ */
+type group = struct {
   id: id,
   members: [user],
 };
@@ -25,13 +29,14 @@ $ cargo run etc/test.jsd
 ```json
 {
   "group": {
+    "description": "this expresses a group of users",
     "properties": {
       "id": {
-        "$ref": "#/definition/id"
+        "$ref": "#/definitions/id"
       },
       "members": {
         "items": {
-          "$ref": "#/definition/user"
+          "$ref": "#/definitions/user"
         },
         "type": "array"
       }
@@ -40,7 +45,6 @@ $ cargo run etc/test.jsd
       "id",
       "members"
     ],
-    "title": "Group",
     "type": "object"
   },
   "id": {
@@ -56,7 +60,7 @@ $ cargo run etc/test.jsd
         "type": "array"
       },
       "id": {
-        "$ref": "#/definition/id",
+        "$ref": "#/definitions/id",
         "description": "unique id of the user"
       },
       "name": {
@@ -77,7 +81,6 @@ $ cargo run etc/test.jsd
       "type",
       "SNSs"
     ],
-    "title": "User",
     "type": "object"
   }
 }

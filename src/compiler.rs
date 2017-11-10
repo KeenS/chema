@@ -53,7 +53,7 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             ]
         }
         Struct(Annot {
-                   t: ::parser::Struct { title, fields },
+                   t: ::parser::Struct { fields },
                    meta,
                }) => {
             let required = collect_requied(&fields)
@@ -78,7 +78,7 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
                 ("properties".to_string(), Value::Object(properties)),
                 ("required".to_string(), Value::Array(required)),
             ];
-            if let Some(title) = title {
+            if let Some(title) = meta.title {
                 vec.push(("title".to_string(), Value::String(title)));
             }
             if let Some(doc) = meta.doc {
@@ -88,12 +88,12 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             vec
         }
         Enum(Annot {
-                 t: ::parser::Enum { title, variants },
+                 t: ::parser::Enum { variants },
                  meta,
              }) => {
             let variants = variants.into_iter().map(|v| Value::String(v.0)).collect();
             let mut vec = vec![("enum".to_string(), Value::Array(variants))];
-            if let Some(title) = title {
+            if let Some(title) = meta.title {
                 vec.push(("title".to_string(), Value::String(title)));
             }
             if let Some(doc) = meta.doc {
