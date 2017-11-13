@@ -8,10 +8,10 @@
 //!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
 //!      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")"
 //!
-//! STRUCT = "struct" STRING? "{" (FIELD ",")+ "}"
+//! STRUCT = "struct" "{" (FIELD ",")+ "}"
 //! FIELD = IDENT ":" TYPE
 //!
-//! ENUM = "enum" STRING? "{" (VARIANT",")+ "}"
+//! ENUM = "enum" "{" (VARIANT",")+ "}"
 //! VARIANT = STRING
 //!
 //! IDENT = [a-zA-Z_][a-zA-Z0-9_]*
