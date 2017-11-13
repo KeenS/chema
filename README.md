@@ -45,6 +45,7 @@ $ cargo run etc/test.jsd
       "id",
       "members"
     ],
+    "title": "Group",
     "type": "object"
   },
   "id": {
@@ -81,6 +82,7 @@ $ cargo run etc/test.jsd
       "type",
       "SNSs"
     ],
+    "title": "User",
     "type": "object"
   }
 }
