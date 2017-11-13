@@ -14,14 +14,10 @@ pub fn compile(config: &Config, ast: AST) -> Map<String, Value> {
     ast.0
         .into_iter()
         .map(|Item::TypeDef(td)| {
-            (
-                td.t.ident.0,
-                Value::Object(insert_if(
-                    compile_type(config, td.t.type_),
-                    "description",
-                    td.meta.doc,
-                )),
-            )
+            let type_ = compile_type(config, td.t.type_);
+            let type_ = insert_if(type_, "description", td.meta.doc);
+            let type_ = insert_if(type_, "title", td.meta.title);
+            (td.t.ident.0, Value::Object(type_))
         })
         .collect()
 }
