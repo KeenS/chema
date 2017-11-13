@@ -1,4 +1,4 @@
-
+[![Build Status](https://travis-ci.org/KeenS/chema.svg?branch=master)](https://travis-ci.org/KeenS/chema)
 
 ```
 /** id type */
