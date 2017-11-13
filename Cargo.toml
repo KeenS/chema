@@ -3,6 +3,11 @@ authors = ["Sunrin SHIMURA (keen) <3han5chou7@gmail.com>"]
 name = "chema"
 version = "0.0.1"
 license = "Apache-2.0/MIT"
+description = "An external DSL for JSON Schema"
+readme = "README.md"
+repository = "https://github.com/KeenS/chema"
+keywords = ["json-schema", "swagger", "DSL", "cli"]
+categories = ["development-tools"]
 
 [dependencies]
 combine = "2.5.2"
