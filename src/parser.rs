@@ -281,7 +281,7 @@ parser! {
     fn blank[I]()(I) -> ()
         where [I: Stream<Item=char>]
     {
-        spaces().skip(optional(try(comment().skip(spaces()))))
+        spaces().skip(skip_many(try(comment().skip(spaces()))))
     }
 }
 
@@ -428,6 +428,7 @@ mod test {
             blank(),
             r#"
 // this is comment
+// continued
 "#,
             ()
         );
