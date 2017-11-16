@@ -1,5 +1,10 @@
+# 0.0.3
+## New Feature
+
+* support string constant type
+
 # 0.0.2
-bug fix
+## Bug Fix
 
 * fix a bug of multiple comment handling
 

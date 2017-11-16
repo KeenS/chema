@@ -39,6 +39,12 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
                 ),
             ]
         }
+        Const(c) => {
+            use parser::Const::*;
+            match c {
+                String(s) => vec![("constant".to_string(), Value::String(s))],
+            }
+        }
         Array(ty) => {
             vec![
                 ("type".to_string(), Value::String("array".into())),

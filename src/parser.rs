@@ -6,7 +6,7 @@
 //!
 //! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
 //!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
-//!      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")"
+//!      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")" | STRING
 //!
 //! STRUCT = "struct" "{" (FIELD ",")+ "}"
 //! FIELD = IDENT ":" TYPE
@@ -96,12 +96,18 @@ pub enum Type {
     String,
     Integer,
     Ident(Ident),
+    Const(Const),
     Array(Box<Type>),
     Struct(Annot<Struct>),
     Enum(Annot<Enum>),
     Option(Box<Type>),
     And(Vec<Type>),
     Or(Vec<Type>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Const {
+    String(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -203,6 +209,7 @@ parser!{
             try(string("number").map(|_| Type::Number)),
             try(string("string").map(|_| Type::String)),
             try(string("integer").map(|_| Type::Integer)),
+            try(str().map(|s| Type::Const(Const::String(s)))),
             try((char('[').skip(blank()), type_(), blank().with(char(']')))
                 .map(|(_, ty, _)| Type::Array(Box::new(ty)))),
             try((char('(').skip(blank()), type_(), blank().with(char(')')))
@@ -709,6 +716,15 @@ enum { \"OK\", \"NG\",}",
     }
 
     #[test]
+    fn test_type_const() {
+        assert_parsed!(
+            type_(),
+            r#""const literal""#,
+            Type::Const(Const::String("const literal".into()))
+        );
+    }
+
+    #[test]
     fn test_type_array() {
         assert_parsed!(type_(), "[string]", Type::Array(Box::new(Type::String)));
     }
@@ -796,7 +812,6 @@ enum { \"OK\", \"NG\",}",
             "[[string]]",
             Type::Array(Box::new(Type::Array(Box::new(Type::String))))
         );
-
         assert_parsed!(
             type_(),
             "[integer?]?",
@@ -813,6 +828,24 @@ enum { \"OK\", \"NG\",}",
                 Type::Ident(Ident("sometype".into())),
             ])
         );
+
+        assert_parsed!(
+            type_(),
+            r#"struct { code: "not_json", message: string}"#,
+            Type::Struct(Annot::new(Struct {
+                fields: vec![
+                    Annot::new(Field {
+                        ident: Ident("code".into()),
+                        type_: Type::Const(Const::String("not_json".into())),
+                    }),
+                    Annot::new(Field {
+                        ident: Ident("message".into()),
+                        type_: Type::String,
+                    }),
+                ],
+            }))
+        );
+
     }
 
     #[test]
