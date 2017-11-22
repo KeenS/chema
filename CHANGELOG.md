@@ -1,3 +1,8 @@
+# 0.0.4
+## New Feature
+
+* support format types
+
 # 0.0.3
 ## New Feature
 
