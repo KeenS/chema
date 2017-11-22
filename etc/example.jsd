@@ -16,4 +16,14 @@ type user = struct {
 type group = struct {
   id: id,
   members: [user],
+  created_at: format("date-time"),
+};
+
+type error = struct {
+  code: string,
+  message: string,
+};
+
+type not_found = error & struct {
+  code: "not_found",
 };

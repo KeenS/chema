@@ -5,7 +5,7 @@
 //! TYPEDEF = "type" IDENT "=" TYPE ";"
 //!
 //! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
-//!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
+//!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?" | "format" "(" STRING ")"
 //!      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")" | STRING
 //!
 //! STRUCT = "struct" "{" (FIELD ",")+ "}"
@@ -95,6 +95,7 @@ pub enum Type {
     Number,
     String,
     Integer,
+    Format(String),
     Ident(Ident),
     Const(Const),
     Array(Box<Type>),
@@ -209,6 +210,9 @@ parser!{
             try(string("number").map(|_| Type::Number)),
             try(string("string").map(|_| Type::String)),
             try(string("integer").map(|_| Type::Integer)),
+            try(between(string("format").skip(blank()).skip(string("(")).skip(blank()),
+                        string(")"),
+                        str()).map(Type::Format)),
             try(str().map(|s| Type::Const(Const::String(s)))),
             try((char('[').skip(blank()), type_(), blank().with(char(']')))
                 .map(|(_, ty, _)| Type::Array(Box::new(ty)))),
@@ -708,6 +712,15 @@ enum { \"OK\", \"NG\",}",
     #[test]
     fn test_type_integer() {
         assert_parsed!(type_(), "integer", Type::Integer);
+    }
+
+    #[test]
+    fn test_type_format() {
+        assert_parsed!(
+            type_(),
+            r#"format("date-time")"#,
+            Type::Format("date-time".to_string())
+        );
     }
 
     #[test]

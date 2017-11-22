@@ -1,7 +1,26 @@
 {
+  "error": {
+    "properties": {
+      "code": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "code",
+      "message"
+    ],
+    "type": "object"
+  },
   "group": {
     "description": "this expresses a group of users",
     "properties": {
+      "created_at": {
+        "format": "date-time",
+        "type": "string"
+      },
       "id": {
         "$ref": "#/definitions/id"
       },
@@ -14,7 +33,8 @@
     },
     "required": [
       "id",
-      "members"
+      "members",
+      "created_at"
     ],
     "title": "Group",
     "type": "object"
@@ -22,6 +42,24 @@
   "id": {
     "description": "id type",
     "type": "integer"
+  },
+  "not_found": {
+    "allOf": [
+      {
+        "$ref": "#/definitions/error"
+      },
+      {
+        "properties": {
+          "code": {
+            "constant": "not_found"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      }
+    ]
   },
   "user": {
     "properties": {
