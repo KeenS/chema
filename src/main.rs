@@ -60,6 +60,7 @@ pub struct Config {
 
 fn main() {
     let config = Config::from_args();
+    debug!("CLI options: {:?}", config);
     let file = File::open(&config.input).expect("file exits");
     let mut br = BufReader::new(file);
     let mut input = String::new();
