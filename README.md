@@ -1,9 +1,19 @@
 [![Build Status](https://travis-ci.org/KeenS/chema.svg?branch=master)](https://travis-ci.org/KeenS/chema)
+[![chema at crates.io](https://img.shields.io/crates/v/chema.svg)](https://crates.io/crates/chema)
 
 # Chema
 Generate JSON Schema from a lightweight DSL.
 
 This is originally intended to generate a `definitions` section of swagger specifications
+
+# Install
+
+Download a binary from https://github.com/KeenS/chema/releases
+or if you have setup `cargo`, use `cargo install like below
+
+```
+$ cargo install chema
+```
 
 # Usage
 
@@ -37,7 +47,7 @@ ITEM = TYPEDEF
 TYPEDEF = "type" IDENT "=" TYPE ";"
 
 TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
-     | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
+     | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?" | "format" "(" STRING ")"
      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")"
 
 STRUCT = "struct" "{" (FIELD ",")+ "}"
