@@ -100,7 +100,10 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
                  meta,
              }) => {
             let variants = variants.into_iter().map(|v| Value::String(v.0)).collect();
-            let mut vec = vec![("enum".to_string(), Value::Array(variants))];
+            let mut vec = vec![
+                ("type".to_string(), Value::String("string".into())),
+                ("enum".to_string(), Value::Array(variants)),
+            ];
             if let Some(title) = meta.title {
                 vec.push(("title".to_string(), Value::String(title)));
             }
