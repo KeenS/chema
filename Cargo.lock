@@ -46,7 +46,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "chema"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "combine 3.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
