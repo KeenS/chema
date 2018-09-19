@@ -8,20 +8,20 @@ extern crate serde_yaml;
 extern crate combine;
 #[macro_use]
 extern crate structopt_derive;
-extern crate structopt;
 extern crate regex;
+extern crate structopt;
 #[macro_use]
 extern crate lazy_static;
 
-pub mod parser;
 pub mod compiler;
 pub mod formatter;
+pub mod parser;
 
 use structopt::clap::{Error, ErrorKind};
 use structopt::StructOpt;
 
-use std::io::{Read, BufReader};
 use std::fs::File;
+use std::io::{BufReader, Read};
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
@@ -47,16 +47,28 @@ impl FromStr for Format {
 
 #[derive(Debug, Clone, StructOpt)]
 pub struct Config {
-    #[structopt(long = "no-swagger", help = "don't use swagger spesific notation")]
+    #[structopt(
+        long = "path-prefix",
+        help = "path prefix of paths",
+        default_value = "/definitions"
+    )]
+    pub path_prefix: String,
+    #[structopt(
+        long = "no-swagger",
+        help = "don't use swagger spesific notation"
+    )]
     pub no_swagger: bool,
-    #[structopt(long = "format", help = "output format (json|yaml)", default_value = "json")]
+    #[structopt(
+        long = "format",
+        help = "output format (json|yaml)",
+        default_value = "json"
+    )]
     pub format: Format,
     #[structopt(long = "pack", help = "if pack the output")]
     pub pack: bool,
     #[structopt(help = "input file")]
     pub input: String,
 }
-
 
 fn main() {
     let config = Config::from_args();

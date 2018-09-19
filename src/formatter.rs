@@ -1,10 +1,8 @@
-use {Config, Format};
 use serde_json::{self, Map, Value};
 use serde_yaml;
+use {Config, Format};
 
 use std::io::stdout;
-
-
 
 pub fn format(config: &Config, schema: Map<String, Value>) {
     let out = stdout();

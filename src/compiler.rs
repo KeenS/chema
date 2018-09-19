@@ -1,5 +1,5 @@
-use Config;
 use parser::*;
+use Config;
 
 use serde_json::{Map, Value};
 
@@ -18,8 +18,7 @@ pub fn compile(config: &Config, ast: AST) -> Map<String, Value> {
             let type_ = insert_if(type_, "description", td.meta.doc);
             let type_ = insert_if(type_, "title", td.meta.title);
             (td.t.ident.0, Value::Object(type_))
-        })
-        .collect()
+        }).collect()
 }
 
 fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
@@ -31,39 +30,32 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
         Number => vec![("type".to_string(), Value::String("number".into()))],
         String => vec![("type".to_string(), Value::String("string".into()))],
         Integer => vec![("type".to_string(), Value::String("integer".into()))],
-        Format(s) => {
-            vec![
-                ("type".to_string(), Value::String("string".into())),
-                ("format".to_string(), Value::String(s)),
-            ]
-        }
-        Ident(::parser::Ident(i)) => {
-            vec![
-                (
-                    "$ref".to_string(),
-                    Value::String(format!("#/definitions/{}", i))
-                ),
-            ]
-        }
+        Format(s) => vec![
+            ("type".to_string(), Value::String("string".into())),
+            ("format".to_string(), Value::String(s)),
+        ],
+        Ref(url) => vec![("$ref".to_string(), Value::String(url))],
+        Ident(::parser::Ident(i)) => vec![(
+            "$ref".to_string(),
+            Value::String(format!("#{}/{}", &config.path_prefix, i)),
+        )],
         Const(c) => {
             use parser::Const::*;
             match c {
                 String(s) => vec![("constant".to_string(), Value::String(s))],
             }
         }
-        Array(ty) => {
-            vec![
-                ("type".to_string(), Value::String("array".into())),
-                (
-                    "items".to_string(),
-                    Value::Object(compile_type(config, *ty))
-                ),
-            ]
-        }
+        Array(ty) => vec![
+            ("type".to_string(), Value::String("array".into())),
+            (
+                "items".to_string(),
+                Value::Object(compile_type(config, *ty)),
+            ),
+        ],
         Struct(Annot {
-                   t: ::parser::Struct { fields },
-                   meta,
-               }) => {
+            t: ::parser::Struct { fields },
+            meta,
+        }) => {
             let required = collect_requied(&fields)
                 .into_iter()
                 .map(|id| Value::String(id.0))
@@ -79,8 +71,7 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
                             f.meta.doc,
                         )),
                     )
-                })
-                .collect();
+                }).collect();
             let mut vec = vec![
                 ("type".to_string(), Value::String("object".to_string())),
                 ("properties".to_string(), Value::Object(properties)),
@@ -96,9 +87,9 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             vec
         }
         Enum(Annot {
-                 t: ::parser::Enum { variants },
-                 meta,
-             }) => {
+            t: ::parser::Enum { variants },
+            meta,
+        }) => {
             let variants = variants.into_iter().map(|v| Value::String(v.0)).collect();
             let mut vec = vec![
                 ("type".to_string(), Value::String("string".into())),
@@ -116,9 +107,7 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             let mut map = compile_type(config, *ty);
             if config.no_swagger {
                 let null = compile_type(config, Type::Null);
-                vec![
-                    ("oneOf".into(), Value::Array(vec![map.into(), null.into()])),
-                ]
+                vec![("oneOf".into(), Value::Array(vec![map.into(), null.into()]))]
             } else {
                 // Swagger only
                 map.insert("nullable".into(), Value::Bool(true));
@@ -126,14 +115,16 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             }
         }
         And(tys) => {
-            let tys = tys.into_iter()
+            let tys = tys
+                .into_iter()
                 .map(|ty| compile_type(config, ty))
                 .map(Value::Object)
                 .collect::<Vec<_>>();
             vec![("allOf".into(), Value::Array(tys))]
         }
         Or(tys) => {
-            let tys = tys.into_iter()
+            let tys = tys
+                .into_iter()
                 .map(|ty| compile_type(config, ty))
                 .map(Value::Object)
                 .collect::<Vec<_>>();

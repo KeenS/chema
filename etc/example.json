@@ -82,7 +82,8 @@
           "admin",
           "writer",
           "reader"
-        ]
+        ],
+        "type": "string"
       }
     },
     "required": [

@@ -5,7 +5,8 @@
 //! TYPEDEF = "type" IDENT "=" TYPE ";"
 //!
 //! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
-//!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?" | "format" "(" STRING ")"
+//!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
+//!      | "format" "(" STRING ")" | "url" "(" STRING ")"
 //!      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")" | STRING
 //!
 //! STRUCT = "struct" "{" (FIELD ",")+ "}"
@@ -20,15 +21,14 @@
 //! COMMENT = "//" any "\n" | "/*" any "*/"
 //! DOC_COMMENT = "/**" any "*/"
 
-
-
 use Config;
 
-use combine::{Parser, ParseError, Stream, State};
-use combine::{skip_many, satisfy, optional, sep_by1, sep_end_by1, try, between, any, many,
-              not_followed_by};
-use combine::char::{char, string, spaces, newline};
+use combine::char::{char, newline, spaces, string};
 use combine::combinator::recognize;
+use combine::{
+    any, between, many, not_followed_by, optional, satisfy, sep_by1, sep_end_by1, skip_many, try,
+};
+use combine::{ParseError, Parser, State, Stream};
 use regex::Regex;
 
 use std::collections::BTreeMap;
@@ -96,6 +96,7 @@ pub enum Type {
     String,
     Integer,
     Format(String),
+    Ref(String),
     Ident(Ident),
     Const(Const),
     Array(Box<Type>),
@@ -114,11 +115,9 @@ pub enum Const {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Ident(pub String);
 
-
 pub fn parse<'cfg, 'a>(_: &'cfg Config, input: &'a str) -> Result<AST, ParseError<State<&'a str>>> {
     ast().parse(State::new(input)).map(|r| r.0)
 }
-
 
 parser!{
     fn ast[I]()(I) -> AST
@@ -178,7 +177,6 @@ parser!{
     }
 }
 
-
 parser!{
     fn enum_[I]()(I) -> Annot<Enum>
         where [I: Stream<Item=char>]
@@ -213,6 +211,9 @@ parser!{
             try(between(string("format").skip(blank()).skip(string("(")).skip(blank()),
                         string(")"),
                         str()).map(Type::Format)),
+            try(between(string("ref").skip(blank()).skip(string("(")).skip(blank()),
+                        string(")"),
+                        str()).map(Type::Ref)),
             try(str().map(|s| Type::Const(Const::String(s)))),
             try((char('[').skip(blank()), type_(), blank().with(char(']')))
                 .map(|(_, ty, _)| Type::Array(Box::new(ty)))),
@@ -312,7 +313,6 @@ parser! {
 
 }
 
-
 parser! {
     fn with_annot[P, I](p: P)(I) -> Annot<P::Output>
         where [
@@ -340,7 +340,6 @@ parser! {
     }
 }
 
-
 fn leading_aster(s: &str) -> &str {
     lazy_static! {
         static ref RE: Regex = Regex::new("^\\s*\\*").unwrap();
@@ -365,7 +364,6 @@ fn attribute_line(s: &str) -> Line {
         None => Line::Plain(s),
         Some(caps) => Line::Attribute(caps.get(1).unwrap().as_str(), caps.get(2).unwrap().as_str()),
     }
-
 }
 
 parser! {
@@ -399,30 +397,36 @@ parser! {
 
 #[cfg(test)]
 mod test {
-    use combine::State;
     use super::*;
+    use combine::State;
 
     macro_rules! assert_parsed {
         ($parser: expr, $input: expr, $expected: expr) => {
             assert_parsed!($parser, $input, $expected, "")
         };
         ($parser: expr, $input: expr, $expected: expr, $rest: expr) => {
-            assert_eq!($parser.parse(State::new($input)).map(|(t1, t2)| (t1, t2.input)),
-                       Ok(($expected, $rest)))
-        }
-
+            assert_eq!(
+                $parser
+                    .parse(State::new($input))
+                    .map(|(t1, t2)| (t1, t2.input)),
+                Ok(($expected, $rest))
+            )
+        };
     }
 
     macro_rules! assert_parsed_partial {
         ($parser: expr, $input: expr, $expected: expr) => {
-            assert_eq!($parser.parse(State::new($input)).map(|t| t.0), Ok($expected))
-        }
+            assert_eq!(
+                $parser.parse(State::new($input)).map(|t| t.0),
+                Ok($expected)
+            )
+        };
     }
 
     macro_rules! assert_parse_fail {
         ($parser: expr, $input: expr) => {
             assert!($parser.parse($input).is_err())
-        }
+        };
     }
 
     #[test]
@@ -471,7 +475,6 @@ mod test {
             vec![("desc".into(), "doc".into())].into_iter().collect()
         );
 
-
         assert_parsed!(
             doc_comments(),
             r#"/** multiple
@@ -497,12 +500,11 @@ line */"#,
                 * line
                 * @title Title
                 */"#,
-
             vec![
                 ("desc".into(), "multiple\n line".into()),
                 ("title".into(), "Title".into()),
             ].into_iter()
-                .collect()
+            .collect()
         );
 
         assert_parsed!(
@@ -517,7 +519,7 @@ line */"#,
                 ("title".into(), "Title".into()),
                 ("attr".into(), "unknown attribute".into()),
             ].into_iter()
-                .collect())
+            .collect())
         );
     }
 
@@ -575,7 +577,6 @@ line */"#,
             })
         );
 
-
         assert_parsed!(
             struct_(),
             "/** doc */
@@ -610,23 +611,22 @@ struct {
             }
         );
 
-
         assert_parsed!(
             struct_(),
             "/** @title User */struct {id: integer, name: string}",
             Annot {
                 t: (Struct {
-                        fields: vec![
-                    Annot::new(Field {
-                        ident: Ident("id".into()),
-                        type_: Type::Integer,
-                    }),
-                    Annot::new(Field {
-                        ident: Ident("name".into()),
-                        type_: Type::String,
-                    }),
-                ],
-                    }),
+                    fields: vec![
+                        Annot::new(Field {
+                            ident: Ident("id".into()),
+                            type_: Type::Integer,
+                        }),
+                        Annot::new(Field {
+                            ident: Ident("name".into()),
+                            type_: Type::String,
+                        }),
+                    ],
+                }),
                 meta: Metadata {
                     doc: None,
                     title: Some("User".into()),
@@ -660,7 +660,9 @@ struct {
             "/** doc */
 enum { \"OK\", \"NG\",}",
             Annot {
-                t: (Enum { variants: vec![Variant("OK".into()), Variant("NG".into())] }),
+                t: (Enum {
+                    variants: vec![Variant("OK".into()), Variant("NG".into())],
+                }),
                 meta: Metadata {
                     doc: Some("doc".into()),
                     title: None,
@@ -672,7 +674,9 @@ enum { \"OK\", \"NG\",}",
             enum_(),
             "/** @title Result*/ enum { \"OK\", \"NG\"}",
             Annot {
-                t: (Enum { variants: vec![Variant("OK".into()), Variant("NG".into())] }),
+                t: (Enum {
+                    variants: vec![Variant("OK".into()), Variant("NG".into())],
+                }),
                 meta: Metadata {
                     doc: None,
                     title: Some("Result".to_string()),
@@ -701,7 +705,6 @@ enum { \"OK\", \"NG\",}",
     #[test]
     fn test_type_number() {
         assert_parsed!(type_(), "number", Type::Number);
-
     }
 
     #[test]
@@ -720,6 +723,15 @@ enum { \"OK\", \"NG\",}",
             type_(),
             r#"format("date-time")"#,
             Type::Format("date-time".to_string())
+        );
+    }
+
+    #[test]
+    fn test_type_ref() {
+        assert_parsed!(
+            type_(),
+            r#"ref("http://json-schema.org/draft-07/hyper-schema")"#,
+            Type::Ref("http://json-schema.org/draft-07/hyper-schema".to_string())
         );
     }
 
@@ -794,20 +806,16 @@ enum { \"OK\", \"NG\",}",
             "struct {id: integer} & struct {name: string}",
             Type::And(vec![
                 Type::Struct(Annot::new(Struct {
-                    fields: vec![
-                        Annot::new(Field {
-                            ident: Ident("id".into()),
-                            type_: Type::Integer,
-                        }),
-                    ],
+                    fields: vec![Annot::new(Field {
+                        ident: Ident("id".into()),
+                        type_: Type::Integer,
+                    }),],
                 })),
                 Type::Struct(Annot::new(Struct {
-                    fields: vec![
-                        Annot::new(Field {
-                            ident: Ident("name".into()),
-                            type_: Type::String,
-                        }),
-                    ],
+                    fields: vec![Annot::new(Field {
+                        ident: Ident("name".into()),
+                        type_: Type::String,
+                    }),],
                 })),
             ])
         );
@@ -828,9 +836,9 @@ enum { \"OK\", \"NG\",}",
         assert_parsed!(
             type_(),
             "[integer?]?",
-            Type::Option(Box::new(
-                Type::Array(Box::new(Type::Option(Box::new(Type::Integer)))),
-            ))
+            Type::Option(Box::new(Type::Array(Box::new(Type::Option(Box::new(
+                Type::Integer
+            )))),))
         );
 
         assert_parsed!(
@@ -858,7 +866,6 @@ enum { \"OK\", \"NG\",}",
                 ],
             }))
         );
-
     }
 
     #[test]
@@ -947,19 +954,15 @@ type person = struct {
                 t: TypeDef {
                     ident: Ident("person".into()),
                     type_: Type::Struct(Annot::new(Struct {
-                        fields: vec![
-                            Annot::new(Field {
-                                ident: Ident("id".into()),
-                                type_: Type::Struct(Annot::new(Struct {
-                                    fields: vec![
-                                        Annot::new(Field {
-                                            ident: Ident("value".into()),
-                                            type_: Type::Integer,
-                                        }),
-                                    ],
-                                })),
-                            }),
-                        ],
+                        fields: vec![Annot::new(Field {
+                            ident: Ident("id".into()),
+                            type_: Type::Struct(Annot::new(Struct {
+                                fields: vec![Annot::new(Field {
+                                    ident: Ident("value".into()),
+                                    type_: Type::Integer,
+                                }),],
+                            })),
+                        }),],
                     })),
                 },
                 meta: Metadata {
@@ -1019,20 +1022,20 @@ type user = struct {id: id, name: string};
                 })),
                 Item::TypeDef(Annot {
                     t: (TypeDef {
-                            ident: Ident("user".into()),
-                            type_: Type::Struct(Annot::new(Struct {
-                        fields: vec![
-                            Annot::new(Field {
-                                ident: Ident("id".into()),
-                                type_: Type::Ident(Ident("id".into())),
-                            }),
-                            Annot::new(Field {
-                                ident: Ident("name".into()),
-                                type_: Type::String,
-                            }),
-                        ],
-                    })),
-                        }),
+                        ident: Ident("user".into()),
+                        type_: Type::Struct(Annot::new(Struct {
+                            fields: vec![
+                                Annot::new(Field {
+                                    ident: Ident("id".into()),
+                                    type_: Type::Ident(Ident("id".into())),
+                                }),
+                                Annot::new(Field {
+                                    ident: Ident("name".into()),
+                                    type_: Type::String,
+                                }),
+                            ],
+                        })),
+                    }),
                     meta: Metadata {
                         doc: None,
                         title: Some("User".into()),
