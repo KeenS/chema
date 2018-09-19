@@ -18,22 +18,19 @@ $ cargo install chema
 # Usage
 
 ```
-chema 0.0.2
+chema 0.0.6
 Sunrin SHIMURA (keen) <3han5chou7@gmail.com>
 An external DSL for JSON Schema
-
 USAGE:
     chema [FLAGS] [OPTIONS] <input>
-
 FLAGS:
     -h, --help          Prints help information
-        --no-swagger    don't use swagger spesific notation (e.g. nullable)
-        --pack          pack (unprettify) the output
+        --no-swagger    don't use swagger spesific notation
+        --pack          if pack the output
     -V, --version       Prints version information
-
 OPTIONS:
-        --format <format>    output format (json|yaml) [default: json]
-
+        --format <format>              output format (json|yaml) [default: json]
+        --path-prefix <path_prefix>    path prefix of paths [default: /definitions]
 ARGS:
     <input>    input file
 ```
