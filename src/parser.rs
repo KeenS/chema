@@ -25,12 +25,12 @@ use Config;
 
 use combine::char::{char, newline, spaces, string};
 use combine::combinator::recognize;
+use combine::ParseError;
 use combine::{
     any, between, many, not_followed_by, optional, satisfy, sep_by1, sep_end_by1, skip_many, try,
 };
-use combine::{ParseError, Parser, State, Stream};
+use combine::{easy, Parser, Stream};
 use regex::Regex;
-
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -115,229 +115,243 @@ pub enum Const {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Ident(pub String);
 
-pub fn parse<'cfg, 'a>(_: &'cfg Config, input: &'a str) -> Result<AST, ParseError<State<&'a str>>> {
-    ast().parse(State::new(input)).map(|r| r.0)
+pub fn parse<'cfg, 'a>(
+    _: &'cfg Config,
+    input: &'a str,
+) -> Result<AST, easy::Errors<char, &'a str, usize>> {
+    ast()
+        .easy_parse(input)
+        .map(|r| r.0)
+        .map_err(|err| err.map_position(|p| p.translate_position(input)))
 }
 
-parser!{
-    fn ast[I]()(I) -> AST
-        where [I: Stream<Item=char>]
-    {
-        blank().with(sep_end_by1(item(), blank())).map(AST)
+fn ast<'a, I>() -> impl Parser<Input = I, Output = AST> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    blank().with(sep_end_by1(item(), blank())).map(AST)
+}
+
+fn item<'a, I>() -> impl Parser<Input = I, Output = Item> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    typedef().map(Item::TypeDef)
+}
+
+fn typedef<'a, I>() -> impl Parser<Input = I, Output = Annot<TypeDef>> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    let typedef_ = struct_parser! {
+        TypeDef {
+            _: string("type").skip(blank()),
+            ident: ident().skip(blank()),
+            _: char('=').skip(blank()),
+            type_: type_().skip(blank()),
+            _: char(';').message("typedef must end with ';'"),
+        }
+    };
+    with_annot(typedef_)
+}
+
+fn struct_<'a, I>() -> impl Parser<Input = I, Output = Annot<Struct>> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    let field = struct_parser! {
+        Field {
+            ident: ident().skip(blank()),
+            _: char(':').skip(blank()),
+            type_: type_()
+        }
+    };
+    let field = with_annot(field);
+
+    let struct__ = struct_parser! {
+        Struct {
+            _: string("struct").skip(blank()),
+            fields: between(char('{').skip(blank()),
+                            char('}'),
+                            sep_end_by1(field.skip(blank()), char(',').skip(blank()))),
+        }
+    };
+    with_annot(struct__)
+}
+
+fn enum_<'a, I>() -> impl Parser<Input = I, Output = Annot<Enum>> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    let variant = str_().message("enum variants must be strings").map(Variant);
+
+    let enum__ = struct_parser! {
+        Enum {
+            _: string("enum").skip(blank()),
+            variants: between(char('{').skip(blank()),
+                              char('}'),
+                              sep_end_by1(variant.skip(blank()), char(',').skip(blank())))
+        }
+    };
+    with_annot(enum__)
+}
+
+fn type0<'a, I>() -> impl Parser<Input = I, Output = Type> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    choice!(
+        try(string("null").map(|_| Type::Null)),
+        try(string("boolean").map(|_| Type::Boolean)),
+        try(string("object").map(|_| Type::Object)),
+        try(string("number").map(|_| Type::Number)),
+        try(string("string").map(|_| Type::String)),
+        try(string("integer").map(|_| Type::Integer)),
+        try(between(
+            string("format")
+                .skip(blank())
+                .skip(string("("))
+                .skip(blank()),
+            string(")"),
+            str_()
+        ).map(Type::Format)),
+        try(between(
+            string("ref").skip(blank()).skip(string("(")).skip(blank()),
+            string(")"),
+            str_()
+        ).map(Type::Ref)),
+        try(str_().map(|s| Type::Const(Const::String(s)))),
+        try((char('[').skip(blank()), type_(), blank().with(char(']')))
+            .map(|(_, ty, _)| Type::Array(Box::new(ty)))),
+        try((char('(').skip(blank()), type_(), blank().with(char(')'))).map(|(_, ty, _)| ty)),
+        try(struct_().map(Type::Struct)),
+        try(enum_().map(Type::Enum)),
+        ident().map(Type::Ident)
+    )
+}
+
+fn type1<'a, I>() -> impl Parser<Input = I, Output = Type> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    choice!(
+        try(type0().skip(char('?')).map(|ty| Type::Option(Box::new(ty)))),
+        type0()
+    )
+}
+
+fn type2<'a, I>() -> impl Parser<Input = I, Output = Type> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    fn shift(item: Type, mut vec: Vec<Type>) -> Vec<Type> {
+        vec.insert(0, item);
+        vec
     }
-}
 
-parser!{
-    fn item[I]()(I) -> Item
-        where [I: Stream<Item=char>]
-    {
-        typedef().map(Item::TypeDef)
-    }
-}
-
-parser!{
-    fn typedef[I]()(I) -> Annot<TypeDef>
-        where [I: Stream<Item=char>]
-    {
-        let typedef = struct_parser! {
-            TypeDef {
-                _: string("type").skip(blank()),
-                ident: ident().skip(blank()),
-                _: char('=').skip(blank()),
-                type_: type_().skip(blank()),
-                _: char(';').message("typedef must end with ';'"),
-            }
-        };
-        with_annot(typedef)
-    }
-}
-
-parser!{
-    fn struct_[I]()(I) -> Annot<Struct>
-        where [I: Stream<Item=char>]
-    {
-        let field = struct_parser! {
-            Field {
-                ident: ident().skip(blank()),
-                _: char(':').skip(blank()),
-                type_: type_()
-            }
-        };
-        let field = with_annot(field);
-
-        let struct_ = struct_parser! {
-            Struct {
-                _: string("struct").skip(blank()),
-                fields: between(char('{').skip(blank()),
-                                char('}'),
-                                sep_end_by1(field.skip(blank()), char(',').skip(blank()))),
-            }
-        };
-        with_annot(struct_)
-    }
-}
-
-parser!{
-    fn enum_[I]()(I) -> Annot<Enum>
-        where [I: Stream<Item=char>]
-    {
-        let variant = str()
-            .message("enum variants must be strings")
-            .map(Variant);
-
-        let enum_ = struct_parser! {
-            Enum {
-                _: string("enum").skip(blank()),
-                variants: between(char('{').skip(blank()),
-                                  char('}'),
-                                  sep_end_by1(variant.skip(blank()), char(',').skip(blank())))
-            }
-        };
-        with_annot(enum_)
-    }
-}
-
-parser!{
-    fn type0[I]()(I) -> Type
-        where [I: Stream<Item=char>]
-    {
-        choice!(
-            try(string("null").map(|_| Type::Null)),
-            try(string("boolean").map(|_| Type::Boolean)),
-            try(string("object").map(|_| Type::Object)),
-            try(string("number").map(|_| Type::Number)),
-            try(string("string").map(|_| Type::String)),
-            try(string("integer").map(|_| Type::Integer)),
-            try(between(string("format").skip(blank()).skip(string("(")).skip(blank()),
-                        string(")"),
-                        str()).map(Type::Format)),
-            try(between(string("ref").skip(blank()).skip(string("(")).skip(blank()),
-                        string(")"),
-                        str()).map(Type::Ref)),
-            try(str().map(|s| Type::Const(Const::String(s)))),
-            try((char('[').skip(blank()), type_(), blank().with(char(']')))
-                .map(|(_, ty, _)| Type::Array(Box::new(ty)))),
-            try((char('(').skip(blank()), type_(), blank().with(char(')')))
-                .map(|(_, ty, _)| ty)),
-            try(struct_().map(Type::Struct)),
-            try(enum_().map(Type::Enum)),
-            ident().map(Type::Ident)
+    choice!(
+        try((
+            type1().skip(blank()).skip(string("&").skip(blank())),
+            sep_by1(type1().skip(blank()), string("&").skip(blank()))
         )
-    }
-}
-
-parser!{
-    fn type1[I]()(I) -> Type
-        where [I: Stream<Item=char>]
-    {
-
-        choice!(
-            try(type0().skip(char('?')).map(|ty| Type::Option(Box::new(ty)))),
-            type0()
+            .map(|(ty, tys)| Type::And(shift(ty, tys)))),
+        try((
+            type1().skip(blank()).skip(string("|").skip(blank())),
+            sep_by1(type1().skip(blank()), string("|").skip(blank()))
         )
-    }
+            .map(|(ty, tys)| Type::Or(shift(ty, tys)))),
+        type1()
+    )
 }
 
 parser! {
-    fn type2[I]()(I) -> Type
-        where [I: Stream<Item=char>]
-    {
-        let shift = |item: Type,  mut vec: Vec<Type>|  {
-            vec.insert(0, item);
-            vec
-        };
-        choice!(
-            try((type1().skip(blank()).skip(string("&").skip(blank())), sep_by1(type1().skip(blank())
-                            , string("&").skip(blank())
-            ))
-                .map(|(ty, tys)| Type::And(shift(ty, tys)))),
-            try((type1().skip(blank()).skip(string("|").skip(blank())), sep_by1(type1().skip(blank())
-                            , string("|").skip(blank())
-            ))
-                .map(|(ty, tys)| Type::Or (shift(ty, tys)))),
-            type1()
-        )
-    }
-}
-
-parser!{
     fn type_[I]()(I) -> Type
-        where [I: Stream<Item=char>]
+    where [I: Stream<Item = char>]
     {
-        type2()
-    }
-}
-
-parser!{
-    fn ident[I]()(I) -> Ident
-        where [I: Stream<Item=char>]
-    {
-        recognize(satisfy(|c:char| c.is_alphabetic() || "_".contains(c))
-                  .with(skip_many(satisfy(|c:char| c.is_alphanumeric() || "_".contains(c)))))
-            .message("ident")
-            .map(|s: String| Ident(s))
-    }
-}
-
-parser!{
-    fn str[I]()(I) -> String
-        where [I: Stream<Item=char>]
-    {
-        between(char('"'), char('"'),
-                many(char('\\').with(any()).or(satisfy(|c:char| c != '"'))))
-            .message("string literal")
-    }
-}
-
-parser! {
-    fn blank[I]()(I) -> ()
-        where [I: Stream<Item=char>]
-    {
-        spaces().skip(skip_many(try(comment().skip(spaces()))))
-    }
-}
-
-parser! {
-    fn comment[I]()(I) -> ()
-        where [I: Stream<Item=char>]
-    {
-        let slasla = between(string("//"),
-                             newline(),
-                             skip_many(satisfy(|c| c != '\n'))).map(|_| ())
-            .message("comment");
-        let slaaster = between(string("/*").skip(not_followed_by(char('*'))), string("*/"),
-                               skip_many(satisfy(|c| c != '*')
-                                         .or(try(char('*').skip(not_followed_by(char('/')))))));
-        try(slasla).or(slaaster)
+        opaque!(type2())
     }
 
 }
 
-parser! {
-    fn with_annot[P, I](p: P)(I) -> Annot<P::Output>
-        where [
-        P: Parser<Input = I>,
-        I: Stream<Item=char>]
-    {
-        optional(doc_comments().skip(blank()))
-            .and(p)
-            .map(|(data, t)| {
-                let meta = if let Some(mut data) = data {
-                    Metadata {
-                        doc: data.remove("desc"),
-                        title: data.remove("title"),
-                    }
-                } else {
-                    Metadata {
-                        doc: None,
-                        title: None
-                    }};
-                Annot {
-                    t,
-                    meta
+fn ident<'a, I>() -> impl Parser<Input = I, Output = Ident>
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    recognize(
+        satisfy(|c: char| c.is_alphabetic() || "_".contains(c)).with(skip_many(satisfy(
+            |c: char| c.is_alphanumeric() || "_".contains(c),
+        ))),
+    ).message("ident")
+    .map(|s: String| Ident(s))
+}
+
+fn str_<'a, I>() -> impl Parser<Input = I, Output = String>
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    between(
+        char('"'),
+        char('"'),
+        many(char('\\').with(any()).or(satisfy(|c: char| c != '"'))),
+    ).message("string literal")
+}
+
+fn blank<'a, I>() -> impl Parser<Input = I, Output = ()>
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    spaces().skip(skip_many(try(comment().skip(spaces()))))
+}
+
+fn comment<'a, I>() -> impl Parser<Input = I, Output = ()>
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    let slasla = between(string("//"), newline(), skip_many(satisfy(|c| c != '\n')))
+        .map(|_| ())
+        .message("comment");
+    let slaaster = between(
+        string("/*").skip(not_followed_by(char('*'))),
+        string("*/"),
+        skip_many(satisfy(|c| c != '*').or(try(char('*').skip(not_followed_by(char('/')))))),
+    );
+    try(slasla).or(slaaster)
+}
+
+fn with_annot<'a, P, I>(p: P) -> impl Parser<Input = I, Output = Annot<P::Output>> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    P: Parser<Input = I> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    optional(doc_comments().skip(blank()))
+        .and(p)
+        .map(|(data, t)| {
+            let meta = if let Some(mut data) = data {
+                Metadata {
+                    doc: data.remove("desc"),
+                    title: data.remove("title"),
                 }
-            })
-    }
+            } else {
+                Metadata {
+                    doc: None,
+                    title: None,
+                }
+            };
+            Annot { t, meta }
+        })
 }
 
 fn leading_aster(s: &str) -> &str {
@@ -366,39 +380,41 @@ fn attribute_line(s: &str) -> Line {
     }
 }
 
-parser! {
-    fn doc_comments[I]()(I) -> BTreeMap<String, String>
-        where [I: Stream<Item=char>]
-    {
-        between(string("/**"), string("*/"),
-                recognize(skip_many(satisfy(|c| c != '*')
-                                    .or(try(char('*').skip(not_followed_by(char('/'))))))))
-            .map(|s: String| {
-                let mut desc = Vec::new();
-                let mut attrs = Vec::new();
-                let lines = s.trim().lines().map(leading_aster).map(attribute_line) ;
-                for line in lines {
-                    match line {
-                        Line::Plain(s) => desc.push(s)
-                        ,
-                        Line::Attribute(k, v) => attrs.push((k.to_string(), v.to_string()))
-                    }
-                }
-                let desc = desc.join("\n").trim().to_string();
-                if !desc.is_empty() {
-                    attrs.push(("desc".into(), desc));
-                }
-                attrs.into_iter().collect()
+// to avoid type loop, manually define the function and return boxed type
+fn doc_comments<'a, I>() -> impl Parser<Input = I, Output = BTreeMap<String, String>>
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    fn process_docs(s: String) -> BTreeMap<String, String> {
+        let mut desc = Vec::new();
+        let mut attrs = Vec::new();
+        let lines = s.trim().lines().map(leading_aster).map(attribute_line);
+        for line in lines {
+            match line {
+                Line::Plain(s) => desc.push(s),
+                Line::Attribute(k, v) => attrs.push((k.to_string(), v.to_string())),
             }
-            )
+        }
+        let desc = desc.join("\n").trim().to_string();
+        if !desc.is_empty() {
+            attrs.push(("desc".into(), desc));
+        }
+        attrs.into_iter().collect()
     }
 
+    between(
+        string("/**"),
+        string("*/"),
+        recognize(skip_many(
+            satisfy(|c| c != '*').or(try(char('*').skip(not_followed_by(char('/'))))),
+        )),
+    ).map(process_docs)
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use combine::State;
 
     macro_rules! assert_parsed {
         ($parser: expr, $input: expr, $expected: expr) => {
@@ -406,9 +422,7 @@ mod test {
         };
         ($parser: expr, $input: expr, $expected: expr, $rest: expr) => {
             assert_eq!(
-                $parser
-                    .parse(State::new($input))
-                    .map(|(t1, t2)| (t1, t2.input)),
+                $parser.easy_parse($input).map(|(t1, t2)| (t1, t2)),
                 Ok(($expected, $rest))
             )
         };
@@ -416,10 +430,7 @@ mod test {
 
     macro_rules! assert_parsed_partial {
         ($parser: expr, $input: expr, $expected: expr) => {
-            assert_eq!(
-                $parser.parse(State::new($input)).map(|t| t.0),
-                Ok($expected)
-            )
+            assert_eq!($parser.easy_parse($input).map(|t| t.0), Ok($expected))
         };
     }
 
@@ -535,10 +546,10 @@ line */"#,
     }
 
     #[test]
-    fn test_str() {
-        assert_parsed!(str(), r#""""#, "".into());
-        assert_parsed!(str(), r#""abc""#, "abc".into());
-        assert_parsed!(str(), r#""abc\"def\"\\""#, "abc\"def\"\\".into());
+    fn test_str_() {
+        assert_parsed!(str_(), r#""""#, "".into());
+        assert_parsed!(str_(), r#""abc""#, "abc".into());
+        assert_parsed!(str_(), r#""abc\"def\"\\""#, "abc\"def\"\\".into());
     }
 
     #[test]
