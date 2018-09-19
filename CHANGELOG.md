@@ -1,3 +1,17 @@
+# 0.0.6
+## New Feature
+
+* support `url("schema_url")` syntax
+* support `--path-prefix` flag
+
+## Internal
+
+* update dependencies
+
+# 0.0.5
+
+???
+
 # 0.0.4
 ## New Feature
 
