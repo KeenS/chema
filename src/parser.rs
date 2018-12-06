@@ -349,6 +349,14 @@ where
         ),
         attempt(
             (
+                string("it"),
+                blank().skip(string("=~")).skip(blank()),
+                regex()
+            )
+                .map(|(_, _, s)| Pred::Match(s.to_string()))
+        ),
+        attempt(
+            (
                 string("length"),
                 blank().skip(string("<=")).skip(blank()),
                 number()
@@ -377,6 +385,18 @@ where
         ))),
     ).message("ident")
     .map(|s: String| Ident(s))
+}
+
+fn regex<'a, I>() -> impl Parser<Input = I, Output = String>
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    between(
+        char('/'),
+        char('/'),
+        many(char('\\').with(any()).or(satisfy(|c: char| c != '/'))),
+    ).message("regex literal")
 }
 
 fn str_<'a, I>() -> impl Parser<Input = I, Output = String>

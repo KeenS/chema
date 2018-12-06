@@ -61,6 +61,12 @@
       }
     ]
   },
+  "password": {
+    "maxLength": 128,
+    "minLength": 1,
+    "pattern": "[a-z0-9!\"#$%&'()=~|@]+",
+    "type": "string"
+  },
   "user": {
     "properties": {
       "SNSs": {

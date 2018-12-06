@@ -20,7 +20,7 @@ type group = struct {
   created_at: format("date-time"),
 };
 
-type fixed_string = string where 1 <= length && length <= 100;
+type password = string where 1 <= length && length <= 128 && it =~ /[a-z0-9!"#$%&'()=~|@]+/;
 
 type error = struct {
   code: string,
