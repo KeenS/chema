@@ -320,7 +320,7 @@ where
     I: Stream<Item = char> + 'a,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    sep_by1(pred().skip(blank()), string("&&").skip(blank()))
+    sep_by1(pred().skip(blank()), try(string("&&").skip(blank())))
 }
 
 fn pred<'a, I>() -> impl Parser<Input = I, Output = Pred> + 'a
@@ -943,6 +943,18 @@ enum { \"OK\", \"NG\",}",
             Type::Option(Box::new(Type::Array(Box::new(Type::Option(Box::new(
                 Type::Integer
             )))),))
+        );
+
+        assert_parsed!(
+            type_(),
+            r#"string? where 1 <= length & string where format="email""#,
+            Type::And(vec![
+                Type::Where(
+                    Box::new(Type::Option(Box::new(Type::String))),
+                    vec![Pred::MinLength(1)]
+                ),
+                Type::Where(Box::new(Type::String), vec![Pred::Format("email".into())])
+            ])
         );
 
         assert_parsed!(
