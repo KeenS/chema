@@ -75,3 +75,9 @@ DOC_COMMENT = "/**" any "*/"
 # Example
 
 See [etc](etc). `*.jsd`s are the sources and `*.jsons` are the generated files.
+
+
+# Supported Platforms
+UNIX-like system will be supported.
+Ubuntu LTS is the major target.
+Windows support is best effort and may not work .
