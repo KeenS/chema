@@ -34,8 +34,8 @@ use combine::char::{char, digit, newline, spaces, string};
 use combine::combinator::{from_str, recognize};
 use combine::ParseError;
 use combine::{
-    any, between, many, many1, not_followed_by, optional, satisfy, sep_by1, sep_end_by1, skip_many,
-    try,
+    any, attempt, between, many, many1, not_followed_by, optional, satisfy, sep_by1, sep_end_by1,
+    skip_many,
 };
 use combine::{easy, Parser, Stream};
 use regex::Regex;
@@ -222,31 +222,37 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     choice!(
-        try(string("null").map(|_| Type::Null)),
-        try(string("boolean").map(|_| Type::Boolean)),
-        try(string("object").map(|_| Type::Object)),
-        try(string("number").map(|_| Type::Number)),
-        try(string("string").map(|_| Type::String)),
-        try(string("integer").map(|_| Type::Integer)),
-        try(between(
-            string("format")
-                .skip(blank())
-                .skip(string("("))
-                .skip(blank()),
-            string(")"),
-            str_()
-        ).map(|f| Type::Where(Box::new(Type::String), vec![Pred::Format(f)]))),
-        try(between(
-            string("ref").skip(blank()).skip(string("(")).skip(blank()),
-            string(")"),
-            str_()
-        ).map(Type::Ref)),
-        try(str_().map(|s| Type::Const(Const::String(s)))),
-        try((char('[').skip(blank()), type_(), blank().with(char(']')))
-            .map(|(_, ty, _)| Type::Array(Box::new(ty)))),
-        try((char('(').skip(blank()), type_(), blank().with(char(')'))).map(|(_, ty, _)| ty)),
-        try(struct_().map(Type::Struct)),
-        try(enum_().map(Type::Enum)),
+        attempt(string("null").map(|_| Type::Null)),
+        attempt(string("boolean").map(|_| Type::Boolean)),
+        attempt(string("object").map(|_| Type::Object)),
+        attempt(string("number").map(|_| Type::Number)),
+        attempt(string("string").map(|_| Type::String)),
+        attempt(string("integer").map(|_| Type::Integer)),
+        attempt(
+            between(
+                string("format")
+                    .skip(blank())
+                    .skip(string("("))
+                    .skip(blank()),
+                string(")"),
+                str_()
+            ).map(|f| Type::Where(Box::new(Type::String), vec![Pred::Format(f)]))
+        ),
+        attempt(
+            between(
+                string("ref").skip(blank()).skip(string("(")).skip(blank()),
+                string(")"),
+                str_()
+            ).map(Type::Ref)
+        ),
+        attempt(str_().map(|s| Type::Const(Const::String(s)))),
+        attempt(
+            (char('[').skip(blank()), type_(), blank().with(char(']')))
+                .map(|(_, ty, _)| Type::Array(Box::new(ty)))
+        ),
+        attempt((char('(').skip(blank()), type_(), blank().with(char(')'))).map(|(_, ty, _)| ty)),
+        attempt(struct_().map(Type::Struct)),
+        attempt(enum_().map(Type::Enum)),
         ident().map(Type::Ident)
     )
 }
@@ -291,16 +297,20 @@ where
     }
 
     choice!(
-        try((
-            type2().skip(blank()).skip(string("&").skip(blank())),
-            sep_by1(type2().skip(blank()), string("&").skip(blank()))
-        )
-            .map(|(ty, tys)| Type::And(shift(ty, tys)))),
-        try((
-            type2().skip(blank()).skip(string("|").skip(blank())),
-            sep_by1(type2().skip(blank()), string("|").skip(blank()))
-        )
-            .map(|(ty, tys)| Type::Or(shift(ty, tys)))),
+        attempt(
+            (
+                type2().skip(blank()).skip(string("&").skip(blank())),
+                sep_by1(type2().skip(blank()), string("&").skip(blank()))
+            )
+                .map(|(ty, tys)| Type::And(shift(ty, tys)))
+        ),
+        attempt(
+            (
+                type2().skip(blank()).skip(string("|").skip(blank())),
+                sep_by1(type2().skip(blank()), string("|").skip(blank()))
+            )
+                .map(|(ty, tys)| Type::Or(shift(ty, tys)))
+        ),
         type2()
     )
 }
@@ -319,7 +329,7 @@ where
     I: Stream<Item = char> + 'a,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    sep_by1(pred().skip(blank()), try(string("&&").skip(blank())))
+    sep_by1(pred().skip(blank()), attempt(string("&&").skip(blank())))
 }
 
 fn pred<'a, I>() -> impl Parser<Input = I, Output = Pred> + 'a
@@ -328,24 +338,30 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     choice!(
-        try((
-            string("format"),
-            blank().skip(string("=")).skip(blank()),
-            str_()
+        attempt(
+            (
+                string("format"),
+                blank().skip(string("=")).skip(blank()),
+                str_()
+            )
+                .map(|(_, _, s)| Pred::Format(s.to_string()))
+        ),
+        attempt(
+            (
+                string("length"),
+                blank().skip(string("<=")).skip(blank()),
+                number()
+            )
+                .map(|(_, _, n)| Pred::MaxLength(n))
+        ),
+        attempt(
+            (
+                number(),
+                blank().skip(string("<=")).skip(blank()),
+                string("length")
+            )
+                .map(|(n, _, _)| Pred::MinLength(n))
         )
-            .map(|(_, _, s)| Pred::Format(s.to_string()))),
-        try((
-            string("length"),
-            blank().skip(string("<=")).skip(blank()),
-            number()
-        )
-            .map(|(_, _, n)| Pred::MaxLength(n))),
-        try((
-            number(),
-            blank().skip(string("<=")).skip(blank()),
-            string("length")
-        )
-            .map(|(n, _, _)| Pred::MinLength(n)))
     )
 }
 
@@ -387,7 +403,7 @@ where
     I: Stream<Item = char> + 'a,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    spaces().skip(skip_many(try(comment().skip(spaces()))))
+    spaces().skip(skip_many(attempt(comment().skip(spaces()))))
 }
 
 fn comment<'a, I>() -> impl Parser<Input = I, Output = ()>
@@ -401,9 +417,9 @@ where
     let slaaster = between(
         string("/*").skip(not_followed_by(char('*'))),
         string("*/"),
-        skip_many(satisfy(|c| c != '*').or(try(char('*').skip(not_followed_by(char('/')))))),
+        skip_many(satisfy(|c| c != '*').or(attempt(char('*').skip(not_followed_by(char('/')))))),
     );
-    try(slasla).or(slaaster)
+    attempt(slasla).or(slaaster)
 }
 
 fn with_annot<'a, P, I>(p: P) -> impl Parser<Input = I, Output = Annot<P::Output>> + 'a
@@ -483,7 +499,7 @@ where
         string("/**"),
         string("*/"),
         recognize(skip_many(
-            satisfy(|c| c != '*').or(try(char('*').skip(not_followed_by(char('/'))))),
+            satisfy(|c| c != '*').or(attempt(char('*').skip(not_followed_by(char('/'))))),
         )),
     ).map(process_docs)
 }
