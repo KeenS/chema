@@ -18,11 +18,12 @@
 //! VARIANT = STRING
 //!
 //! PRED = UNUMBER "<=" "length" | "length" <= UNUMBER
-//!      | "format" "=" STRING
+//!      | "format" "=" STRING | "it" "=~" REGEX
 //!      | PRED && PRED
 //!
 //! IDENT = [a-zA-Z_][a-zA-Z0-9_]*
-//! STRIING = "\"" ([^"\\]|\.)* "\""
+//! STRIING = "\"" ([^"\\]|\\.)* "\""
+//! REGEX   = "/" ([^/\\]|\\.)* "/"
 //! UNUMBER = [0-9]+
 //!
 //! COMMENT = "//" any "\n" | "/*" any "*/"
