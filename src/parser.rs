@@ -31,7 +31,7 @@
 use Config;
 
 use combine::char::{char, digit, newline, spaces, string};
-use combine::combinator::{from_str, recognize, sep_by};
+use combine::combinator::{from_str, recognize};
 use combine::ParseError;
 use combine::{
     any, between, many, many1, not_followed_by, optional, satisfy, sep_by1, sep_end_by1, skip_many,
@@ -257,19 +257,31 @@ where
     I: Stream<Item = char> + 'a,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    choice!(
-        try(type0().skip(char('?')).map(|ty| Type::Option(Box::new(ty)))),
-        try((
-            type0(),
-            blank().skip(string("where")).skip(blank()),
-            preds()
-        )
-            .map(|(ty, _, preds)| Type::Where(Box::new(ty), preds))),
-        type0()
-    )
+    (type0(), optional(char('?'))).map(|(ty, q)| {
+        if q.is_some() {
+            Type::Option(Box::new(ty))
+        } else {
+            ty
+        }
+    })
 }
 
 fn type2<'a, I>() -> impl Parser<Input = I, Output = Type> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    (
+        type1().skip(blank()),
+        optional((string("where").skip(blank()), preds())),
+    )
+        .map(|(ty, preds)| match preds {
+            Some((_, preds)) => Type::Where(Box::new(ty), preds),
+            None => ty,
+        })
+}
+
+fn type3<'a, I>() -> impl Parser<Input = I, Output = Type> + 'a
 where
     I: Stream<Item = char> + 'a,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
@@ -281,16 +293,16 @@ where
 
     choice!(
         try((
-            type1().skip(blank()).skip(string("&").skip(blank())),
-            sep_by1(type1().skip(blank()), string("&").skip(blank()))
+            type2().skip(blank()).skip(string("&").skip(blank())),
+            sep_by1(type2().skip(blank()), string("&").skip(blank()))
         )
             .map(|(ty, tys)| Type::And(shift(ty, tys)))),
         try((
-            type1().skip(blank()).skip(string("|").skip(blank())),
-            sep_by1(type1().skip(blank()), string("|").skip(blank()))
+            type2().skip(blank()).skip(string("|").skip(blank())),
+            sep_by1(type2().skip(blank()), string("|").skip(blank()))
         )
             .map(|(ty, tys)| Type::Or(shift(ty, tys)))),
-        type1()
+        type2()
     )
 }
 
@@ -298,7 +310,7 @@ parser! {
     fn type_[I]()(I) -> Type
     where [I: Stream<Item = char>]
     {
-        opaque!(type2())
+        opaque!(type3())
     }
 
 }
@@ -308,7 +320,7 @@ where
     I: Stream<Item = char> + 'a,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    sep_by(pred().skip(blank()), string("&&").skip(blank()))
+    sep_by1(pred().skip(blank()), string("&&").skip(blank()))
 }
 
 fn pred<'a, I>() -> impl Parser<Input = I, Output = Pred> + 'a
@@ -317,6 +329,12 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     choice!(
+        try((
+            string("format"),
+            blank().skip(string("=")).skip(blank()),
+            str_()
+        )
+            .map(|(_, _, s)| Pred::Format(s.to_string()))),
         try((
             string("length"),
             blank().skip(string("<=")).skip(blank()),
@@ -858,6 +876,22 @@ enum { \"OK\", \"NG\",}",
     #[test]
     fn test_type_optional() {
         assert_parsed!(type_(), "integer?", Type::Option(Box::new(Type::Integer)));
+    }
+
+    #[test]
+    fn test_type_where() {
+        assert_parsed!(
+            type_(),
+            r#"string where format = "email" && 1 <= length &&length<=100"#,
+            Type::Where(
+                Box::new(Type::String),
+                vec![
+                    Pred::Format("email".into()),
+                    Pred::MinLength(1),
+                    Pred::MaxLength(100)
+                ]
+            )
+        );
     }
 
     #[test]
