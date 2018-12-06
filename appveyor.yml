@@ -46,7 +46,7 @@ test_script:
   - if [%APPVEYOR_REPO_TAG%]==[false] (
       cargo build --target %TARGET% &&
       cargo test --target %TARGET% &&
-      cargo run --target %TARGET% etc\example.jsd &&
+      cargo run --target %TARGET% etc\example.jsd
     )
 
 before_deploy:
