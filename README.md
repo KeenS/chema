@@ -1,4 +1,7 @@
 [![Build Status](https://travis-ci.org/KeenS/chema.svg?branch=master)](https://travis-ci.org/KeenS/chema)
+[![Build status](https://ci.appveyor.com/api/projects/status/3o96tvfb0wv597ud/branch/master?svg=true)](https://ci.appveyor.com/project/KeenS/chema/branch/master)
+
+
 [![chema at crates.io](https://img.shields.io/crates/v/chema.svg)](https://crates.io/crates/chema)
 
 # Chema
