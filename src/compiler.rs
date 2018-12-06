@@ -30,10 +30,6 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
         Number => vec![("type".to_string(), Value::String("number".into()))],
         String => vec![("type".to_string(), Value::String("string".into()))],
         Integer => vec![("type".to_string(), Value::String("integer".into()))],
-        Format(s) => vec![
-            ("type".to_string(), Value::String("string".into())),
-            ("format".to_string(), Value::String(s)),
-        ],
         Ref(url) => vec![("$ref".to_string(), Value::String(url))],
         Ident(::parser::Ident(i)) => vec![(
             "$ref".to_string(),

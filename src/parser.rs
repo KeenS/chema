@@ -103,7 +103,6 @@ pub enum Type {
     Number,
     String,
     Integer,
-    Format(String),
     Ref(String),
     Ident(Ident),
     Const(Const),
@@ -236,7 +235,7 @@ where
                 .skip(blank()),
             string(")"),
             str_()
-        ).map(Type::Format)),
+        ).map(|f| Type::Where(Box::new(Type::String), vec![Pred::Format(f)]))),
         try(between(
             string("ref").skip(blank()).skip(string("(")).skip(blank()),
             string(")"),
@@ -810,7 +809,10 @@ enum { \"OK\", \"NG\",}",
         assert_parsed!(
             type_(),
             r#"format("date-time")"#,
-            Type::Format("date-time".to_string())
+            Type::Where(
+                Box::new(Type::String),
+                vec![Pred::Format("date-time".to_string())]
+            )
         );
     }
 
