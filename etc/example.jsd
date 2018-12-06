@@ -16,8 +16,11 @@ type user = struct {
 type group = struct {
   id: id,
   members: [user],
+  // this is short hand of `string where format = "date-time"`
   created_at: format("date-time"),
 };
+
+type fixed_string = string where 1 <= length && length <= 100;
 
 type error = struct {
   code: string,

@@ -7,7 +7,9 @@
 //! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
 //!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
 //!      | "format" "(" STRING ")" | "url" "(" STRING ")"
-//!      | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")" | STRING
+//!      | TYPE "&" TYPE |  TYPE "|" TYPE
+//!      | TYPE "where" PRED
+//!      | "(" TYPE ")" | STRING
 //!
 //! STRUCT = "struct" "{" (FIELD ",")+ "}"
 //! FIELD = IDENT ":" TYPE
@@ -15,19 +17,25 @@
 //! ENUM = "enum" "{" (VARIANT",")+ "}"
 //! VARIANT = STRING
 //!
+//! PRED = UNUMBER "<=" "length" | "length" <= UNUMBER
+//!      | "format" "=" STRING
+//!      | PRED && PRED
+//!
 //! IDENT = [a-zA-Z_][a-zA-Z0-9_]*
 //! STRIING = "\"" ([^"\\]|\.)* "\""
+//! UNUMBER = [0-9]+
 //!
 //! COMMENT = "//" any "\n" | "/*" any "*/"
 //! DOC_COMMENT = "/**" any "*/"
 
 use Config;
 
-use combine::char::{char, newline, spaces, string};
-use combine::combinator::recognize;
+use combine::char::{char, digit, newline, spaces, string};
+use combine::combinator::{from_str, recognize, sep_by};
 use combine::ParseError;
 use combine::{
-    any, between, many, not_followed_by, optional, satisfy, sep_by1, sep_end_by1, skip_many, try,
+    any, between, many, many1, not_followed_by, optional, satisfy, sep_by1, sep_end_by1, skip_many,
+    try,
 };
 use combine::{easy, Parser, Stream};
 use regex::Regex;
@@ -105,6 +113,14 @@ pub enum Type {
     Option(Box<Type>),
     And(Vec<Type>),
     Or(Vec<Type>),
+    Where(Box<Type>, Vec<Pred>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Pred {
+    MinLength(usize),
+    MaxLength(usize),
+    Format(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -243,6 +259,12 @@ where
 {
     choice!(
         try(type0().skip(char('?')).map(|ty| Type::Option(Box::new(ty)))),
+        try((
+            type0(),
+            blank().skip(string("where")).skip(blank()),
+            preds()
+        )
+            .map(|(ty, _, preds)| Type::Where(Box::new(ty), preds))),
         type0()
     )
 }
@@ -281,6 +303,35 @@ parser! {
 
 }
 
+fn preds<'a, I>() -> impl Parser<Input = I, Output = Vec<Pred>> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    sep_by(pred().skip(blank()), string("&&").skip(blank()))
+}
+
+fn pred<'a, I>() -> impl Parser<Input = I, Output = Pred> + 'a
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    choice!(
+        try((
+            string("length"),
+            blank().skip(string("<=")).skip(blank()),
+            number()
+        )
+            .map(|(_, _, n)| Pred::MaxLength(n))),
+        try((
+            number(),
+            blank().skip(string("<=")).skip(blank()),
+            string("length")
+        )
+            .map(|(n, _, _)| Pred::MinLength(n)))
+    )
+}
+
 fn ident<'a, I>() -> impl Parser<Input = I, Output = Ident>
 where
     I: Stream<Item = char> + 'a,
@@ -304,6 +355,14 @@ where
         char('"'),
         many(char('\\').with(any()).or(satisfy(|c: char| c != '"'))),
     ).message("string literal")
+}
+
+fn number<'a, I>() -> impl Parser<Input = I, Output = usize>
+where
+    I: Stream<Item = char> + 'a,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    from_str(many1::<String, _>(digit()))
 }
 
 fn blank<'a, I>() -> impl Parser<Input = I, Output = ()>

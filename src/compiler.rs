@@ -130,6 +130,22 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
                 .collect::<Vec<_>>();
             vec![("anyOf".into(), Value::Array(tys))]
         }
+        Where(ty, preds) => preds
+            .into_iter()
+            .fold(compile_type(config, *ty), |mut m, pred| {
+                m.extend(compile_pred(config, pred));
+                m
+            }).into_iter()
+            .collect::<Vec<_>>(),
+    };
+    kvs.into_iter().collect()
+}
+
+fn compile_pred(_config: &Config, pred: Pred) -> Map<String, Value> {
+    let kvs = match pred {
+        Pred::MinLength(n) => vec![("minLength".to_string(), Value::Number(n.into()))],
+        Pred::MaxLength(n) => vec![("maxLength".to_string(), Value::Number(n.into()))],
+        Pred::Format(format) => vec![("format".to_string(), Value::String(format.into()))],
     };
     kvs.into_iter().collect()
 }

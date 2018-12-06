@@ -44,8 +44,11 @@ ITEM = TYPEDEF
 TYPEDEF = "type" IDENT "=" TYPE ";"
 
 TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
-     | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?" | "format" "(" STRING ")"
-     | TYPE "&" TYPE |  TYPE "|" TYPE | "(" TYPE ")"
+     | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
+     | "format" "(" STRING ")" | "url" "(" STRING ")"
+     | TYPE "&" TYPE |  TYPE "|" TYPE
+     | TYPE "where" PRED
+     | "(" TYPE ")" | STRING
 
 STRUCT = "struct" "{" (FIELD ",")+ "}"
 FIELD = IDENT ":" TYPE
@@ -53,8 +56,13 @@ FIELD = IDENT ":" TYPE
 ENUM = "enum" "{" (VARIANT",")+ "}"
 VARIANT = STRING
 
+PRED = UNUMBER "<=" "length" | "length" <= UNUMBER
+     | "format" "=" STRING
+     | PRED && PRED
+
 IDENT = [a-zA-Z_][a-zA-Z0-9_]*
 STRIING = "\"" ([^"\\]|\.)* "\""
+UNUMBER = [0-9]+
 
 COMMENT = "//" any "\n" | "/*" any "*/"
 DOC_COMMENT = "/**" any "*/"
