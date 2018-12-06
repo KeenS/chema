@@ -1,3 +1,9 @@
+# 0.0.7
+## New Feature
+
+* support `TYPE where PRED` synax
+  + it looks like `string where 1 <= length && length <= 128 && it =~ /[a-z0-9!"#$%&'()=~|@]+/`
+
 # 0.0.6
 ## New Feature
 
