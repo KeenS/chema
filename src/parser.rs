@@ -120,6 +120,7 @@ pub enum Pred {
     MinLength(usize),
     MaxLength(usize),
     Format(String),
+    Match(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -900,13 +901,14 @@ enum { \"OK\", \"NG\",}",
     fn test_type_where() {
         assert_parsed!(
             type_(),
-            r#"string where format = "email" && 1 <= length &&length<=100"#,
+            r#"string where format = "email" && 1 <= length &&length<=100 && it =~ /[a-z]+@[a-z.]+/"#,
             Type::Where(
                 Box::new(Type::String),
                 vec![
                     Pred::Format("email".into()),
                     Pred::MinLength(1),
-                    Pred::MaxLength(100)
+                    Pred::MaxLength(100),
+                    Pred::Match("[a-z]+@[a-z.]+".into())
                 ]
             )
         );

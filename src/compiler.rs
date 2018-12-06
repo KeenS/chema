@@ -142,6 +142,7 @@ fn compile_pred(_config: &Config, pred: Pred) -> Map<String, Value> {
         Pred::MinLength(n) => vec![("minLength".to_string(), Value::Number(n.into()))],
         Pred::MaxLength(n) => vec![("maxLength".to_string(), Value::Number(n.into()))],
         Pred::Format(format) => vec![("format".to_string(), Value::String(format.into()))],
+        Pred::Match(regex) => vec![("pattern".to_string(), Value::String(regex.into()))],
     };
     kvs.into_iter().collect()
 }
