@@ -1,7 +1,7 @@
 use parser::*;
 use Config;
 
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 
 fn insert_if(mut map: Map<String, Value>, k: &str, v: Option<String>) -> Map<String, Value> {
     if let Some(v) = v {
@@ -102,11 +102,19 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             vec
         }
         Option(ty) => {
-            let mut map = compile_type(config, *ty);
             if config.no_swagger {
+                let map = compile_type(config, *ty);
                 let null = compile_type(config, Type::Null);
                 vec![("oneOf".into(), Value::Array(vec![map.into(), null.into()]))]
             } else {
+                let mut map = if matches!(&*ty, Ident(_) | Ref(_)) {
+                    // See https://github.com/OAI/OpenAPI-Specification/issues/1368#issuecomment-580103688
+                    vec![("anyOf".to_string(), json!([compile_type(config, *ty)]))]
+                        .into_iter()
+                        .collect::<Map<_, _>>()
+                } else {
+                    compile_type(config, *ty)
+                };
                 // Swagger only
                 map.insert("nullable".into(), Value::Bool(true));
                 map.into_iter().collect()
