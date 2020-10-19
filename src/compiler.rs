@@ -18,7 +18,8 @@ pub fn compile(config: &Config, ast: AST) -> Map<String, Value> {
             let type_ = insert_if(type_, "description", td.meta.doc);
             let type_ = insert_if(type_, "title", td.meta.title);
             (td.t.ident.0, Value::Object(type_))
-        }).collect()
+        })
+        .collect()
 }
 
 fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
@@ -67,7 +68,8 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
                             f.meta.doc,
                         )),
                     )
-                }).collect();
+                })
+                .collect();
             let mut vec = vec![
                 ("type".to_string(), Value::String("object".to_string())),
                 ("properties".to_string(), Value::Object(properties)),
@@ -131,7 +133,8 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             .fold(compile_type(config, *ty), |mut m, pred| {
                 m.extend(compile_pred(config, pred));
                 m
-            }).into_iter()
+            })
+            .into_iter()
             .collect::<Vec<_>>(),
     };
     kvs.into_iter().collect()

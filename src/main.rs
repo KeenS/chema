@@ -54,10 +54,7 @@ pub struct Config {
         default_value = "/definitions"
     )]
     pub path_prefix: String,
-    #[structopt(
-        long = "no-swagger",
-        help = "don't use swagger spesific notation"
-    )]
+    #[structopt(long = "no-swagger", help = "don't use swagger spesific notation")]
     pub no_swagger: bool,
     #[structopt(
         long = "format",

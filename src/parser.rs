@@ -238,14 +238,16 @@ where
                     .skip(blank()),
                 string(")"),
                 str_()
-            ).map(|f| Type::Where(Box::new(Type::String), vec![Pred::Format(f)]))
+            )
+            .map(|f| Type::Where(Box::new(Type::String), vec![Pred::Format(f)]))
         ),
         attempt(
             between(
                 string("ref").skip(blank()).skip(string("(")).skip(blank()),
                 string(")"),
                 str_()
-            ).map(Type::Ref)
+            )
+            .map(Type::Ref)
         ),
         attempt(str_().map(|s| Type::Const(Const::String(s)))),
         attempt(
@@ -384,7 +386,8 @@ where
         satisfy(|c: char| c.is_alphabetic() || "_".contains(c)).with(skip_many(satisfy(
             |c: char| c.is_alphanumeric() || "_".contains(c),
         ))),
-    ).message("ident")
+    )
+    .message("ident")
     .map(|s: String| Ident(s))
 }
 
@@ -397,7 +400,8 @@ where
         char('/'),
         char('/'),
         many(char('\\').with(any()).or(satisfy(|c: char| c != '/'))),
-    ).message("regex literal")
+    )
+    .message("regex literal")
 }
 
 fn str_<'a, I>() -> impl Parser<Input = I, Output = String>
@@ -409,7 +413,8 @@ where
         char('"'),
         char('"'),
         many(char('\\').with(any()).or(satisfy(|c: char| c != '"'))),
-    ).message("string literal")
+    )
+    .message("string literal")
 }
 
 fn number<'a, I>() -> impl Parser<Input = I, Output = usize>
@@ -523,7 +528,8 @@ where
         recognize(skip_many(
             satisfy(|c| c != '*').or(attempt(char('*').skip(not_followed_by(char('/'))))),
         )),
-    ).map(process_docs)
+    )
+    .map(process_docs)
 }
 
 #[cfg(test)]
@@ -628,7 +634,8 @@ line */"#,
             vec![
                 ("desc".into(), "multiple\n line".into()),
                 ("title".into(), "Title".into()),
-            ].into_iter()
+            ]
+            .into_iter()
             .collect()
         );
 
@@ -643,7 +650,8 @@ line */"#,
                 ("desc".into(), "multiple\n line".into()),
                 ("title".into(), "Title".into()),
                 ("attr".into(), "unknown attribute".into()),
-            ].into_iter()
+            ]
+            .into_iter()
             .collect())
         );
     }
