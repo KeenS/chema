@@ -109,9 +109,12 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             } else {
                 let mut map = if matches!(&*ty, Ident(_) | Ref(_)) {
                     // See https://github.com/OAI/OpenAPI-Specification/issues/1368#issuecomment-580103688
-                    vec![("anyOf".to_string(), json!([compile_type(config, *ty)]))]
-                        .into_iter()
-                        .collect::<Map<_, _>>()
+                    vec![
+                        ("type".to_string(), json!("object")),
+                        ("anyOf".to_string(), json!([compile_type(config, *ty)])),
+                    ]
+                    .into_iter()
+                    .collect::<Map<_, _>>()
                 } else {
                     compile_type(config, *ty)
                 };
