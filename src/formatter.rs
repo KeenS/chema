@@ -1,6 +1,6 @@
 use serde_json::{self, Map, Value};
 use serde_yaml;
-use {Config, Format};
+use crate::{Config, Format};
 
 use std::io::stdout;
 

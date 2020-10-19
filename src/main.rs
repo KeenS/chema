@@ -1,29 +1,17 @@
 #![recursion_limit = "128"]
 #[macro_use]
-extern crate log;
-extern crate env_logger;
-extern crate serde;
-extern crate serde_json;
-extern crate serde_yaml;
-#[macro_use]
 extern crate combine;
-#[macro_use]
-extern crate structopt_derive;
-extern crate regex;
-extern crate structopt;
-#[macro_use]
-extern crate lazy_static;
 
 pub mod compiler;
 pub mod formatter;
 pub mod parser;
 
-use structopt::clap::{Error, ErrorKind};
-use structopt::StructOpt;
-
+use log::debug;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::str::FromStr;
+use structopt::clap::{Error, ErrorKind};
+use structopt::StructOpt;
 
 #[derive(Debug, Clone)]
 pub enum Format {

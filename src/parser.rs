@@ -29,7 +29,7 @@
 //! COMMENT = "//" any "\n" | "/*" any "*/"
 //! DOC_COMMENT = "/**" any "*/"
 
-use Config;
+use crate::Config;
 
 use combine::char::{char, digit, newline, spaces, string};
 use combine::combinator::{from_str, recognize};
@@ -39,6 +39,7 @@ use combine::{
     skip_many,
 };
 use combine::{easy, Parser, Stream};
+use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::BTreeMap;
 
@@ -489,7 +490,7 @@ enum Line<'a> {
     Attribute(&'a str, &'a str),
 }
 
-fn attribute_line(s: &str) -> Line {
+fn attribute_line(s: &str) -> Line<'_> {
     lazy_static! {
         static ref RE: Regex = Regex::new("^\\s*@(\\w+)\\s+(.*)").unwrap();
     }

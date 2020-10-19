@@ -1,5 +1,5 @@
-use parser::*;
-use Config;
+use crate::parser::*;
+use crate::Config;
 
 use serde_json::{json, Map, Value};
 
@@ -32,12 +32,12 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
         String => vec![("type".to_string(), Value::String("string".into()))],
         Integer => vec![("type".to_string(), Value::String("integer".into()))],
         Ref(url) => vec![("$ref".to_string(), Value::String(url))],
-        Ident(::parser::Ident(i)) => vec![(
+        Ident(crate::parser::Ident(i)) => vec![(
             "$ref".to_string(),
             Value::String(format!("#{}/{}", &config.path_prefix, i)),
         )],
         Const(c) => {
-            use parser::Const::*;
+            use crate::parser::Const::*;
             match c {
                 String(s) => vec![("constant".to_string(), Value::String(s))],
             }
@@ -50,7 +50,7 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             ),
         ],
         Struct(Annot {
-            t: ::parser::Struct { fields },
+            t: crate::parser::Struct { fields },
             meta,
         }) => {
             let required = collect_requied(&fields)
@@ -85,7 +85,7 @@ fn compile_type(config: &Config, ty: Type) -> Map<String, Value> {
             vec
         }
         Enum(Annot {
-            t: ::parser::Enum { variants },
+            t: crate::parser::Enum { variants },
             meta,
         }) => {
             let variants = variants.into_iter().map(|v| Value::String(v.0)).collect();
