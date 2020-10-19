@@ -15,6 +15,7 @@ type user = struct {
  */
 type group = struct {
   id: id,
+  admin: user?,
   members: [user],
   // this is short hand of `string where format = "date-time"`
   created_at: format("date-time"),

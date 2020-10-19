@@ -17,6 +17,14 @@
   "group": {
     "description": "this expresses a group of users",
     "properties": {
+      "admin": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/user"
+          }
+        ],
+        "nullable": true
+      },
       "created_at": {
         "format": "date-time",
         "type": "string"
@@ -33,6 +41,7 @@
     },
     "required": [
       "id",
+      "admin",
       "members",
       "created_at"
     ],
