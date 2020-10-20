@@ -1,3 +1,13 @@
+# 0.0.8
+## Bug Fix
+
+* code generation of `nullable` with reference types are fixed
+
+## Internal
+
+* migrated code base to Rust 2018 Edition
+
+
 # 0.0.7
 ## New Feature
 
