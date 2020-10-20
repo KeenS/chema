@@ -23,8 +23,7 @@
             "$ref": "#/definitions/user"
           }
         ],
-        "nullable": true,
-        "type": "object"
+        "nullable": true
       },
       "created_at": {
         "format": "date-time",
