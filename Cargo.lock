@@ -55,7 +55,7 @@ checksum = "082bb9b28e00d3c9d39cc03e64ce4cea0f1bb9b3fde493f0cbc008472d22bdf4"
 
 [[package]]
 name = "chema"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "combine",
  "env_logger",
