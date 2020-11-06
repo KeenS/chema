@@ -11,7 +11,7 @@ categories = ["development-tools"]
 edition="2018"
 
 [dependencies]
-combine = "3.5.2"
+combine = "4"
 env_logger = "0.6.0"
 lazy_static = "1.0"
 log = "0.4.0"

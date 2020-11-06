@@ -64,7 +64,15 @@ fn main() {
     let mut input = String::new();
     br.read_to_string(&mut input).expect("read succeed");
 
-    let ast = parser::parse(&config, &input).expect("correct syntax");
+    let ast = match parser::parse(&config, &input) {
+        Ok(ast) => ast,
+        Err(e) => {
+            use std::process::exit;
+            eprintln!("A syntax error found");
+            eprintln!("{}", e);
+            exit(-1)
+        }
+    };
     let schema = compiler::compile(&config, ast);
     formatter::format(&config, schema);
 }

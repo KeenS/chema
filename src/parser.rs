@@ -31,14 +31,14 @@
 
 use crate::Config;
 
-use combine::char::{char, digit, newline, spaces, string};
-use combine::combinator::{from_str, recognize};
-use combine::ParseError;
+use combine::parser::char::{char, digit, newline, spaces, string};
+use combine::parser::combinator::{from_str, recognize};
+use combine::stream::position::{SourcePosition, Stream as PositionedInput};
 use combine::{
     any, attempt, between, many, many1, not_followed_by, optional, satisfy, sep_by1, sep_end_by1,
     skip_many,
 };
-use combine::{easy, Parser, Stream};
+use combine::{easy, EasyParser, ParseError, Parser, Stream};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::BTreeMap;
@@ -136,33 +136,31 @@ pub struct Ident(pub String);
 pub fn parse<'cfg, 'a>(
     _: &'cfg Config,
     input: &'a str,
-) -> Result<AST, easy::Errors<char, &'a str, usize>> {
-    ast()
-        .easy_parse(input)
-        .map(|r| r.0)
-        .map_err(|err| err.map_position(|p| p.translate_position(input)))
+) -> Result<AST, easy::ParseError<PositionedInput<&'a str, SourcePosition>>> {
+    let input = PositionedInput::new(input);
+    ast().easy_parse(input).map(|r| r.0)
 }
 
-fn ast<'a, I>() -> impl Parser<Input = I, Output = AST> + 'a
+fn ast<'a, I>() -> impl Parser<I, Output = AST> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     blank().with(sep_end_by1(item(), blank())).map(AST)
 }
 
-fn item<'a, I>() -> impl Parser<Input = I, Output = Item> + 'a
+fn item<'a, I>() -> impl Parser<I, Output = Item> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     typedef().map(Item::TypeDef)
 }
 
-fn typedef<'a, I>() -> impl Parser<Input = I, Output = Annot<TypeDef>> + 'a
+fn typedef<'a, I>() -> impl Parser<I, Output = Annot<TypeDef>> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     let typedef_ = struct_parser! {
         TypeDef {
@@ -176,10 +174,10 @@ where
     with_annot(typedef_)
 }
 
-fn struct_<'a, I>() -> impl Parser<Input = I, Output = Annot<Struct>> + 'a
+fn struct_<'a, I>() -> impl Parser<I, Output = Annot<Struct>> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     let field = struct_parser! {
         Field {
@@ -201,10 +199,10 @@ where
     with_annot(struct__)
 }
 
-fn enum_<'a, I>() -> impl Parser<Input = I, Output = Annot<Enum>> + 'a
+fn enum_<'a, I>() -> impl Parser<I, Output = Annot<Enum>> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     let variant = str_().message("enum variants must be strings").map(Variant);
 
@@ -219,10 +217,10 @@ where
     with_annot(enum__)
 }
 
-fn type0<'a, I>() -> impl Parser<Input = I, Output = Type> + 'a
+fn type0<'a, I>() -> impl Parser<I, Output = Type> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     choice!(
         attempt(string("null").map(|_| Type::Null)),
@@ -262,10 +260,10 @@ where
     )
 }
 
-fn type1<'a, I>() -> impl Parser<Input = I, Output = Type> + 'a
+fn type1<'a, I>() -> impl Parser<I, Output = Type> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     (type0(), optional(char('?'))).map(|(ty, q)| {
         if q.is_some() {
@@ -276,10 +274,10 @@ where
     })
 }
 
-fn type2<'a, I>() -> impl Parser<Input = I, Output = Type> + 'a
+fn type2<'a, I>() -> impl Parser<I, Output = Type> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     (
         type1().skip(blank()),
@@ -291,10 +289,10 @@ where
         })
 }
 
-fn type3<'a, I>() -> impl Parser<Input = I, Output = Type> + 'a
+fn type3<'a, I>() -> impl Parser<I, Output = Type> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     fn shift(item: Type, mut vec: Vec<Type>) -> Vec<Type> {
         vec.insert(0, item);
@@ -322,25 +320,25 @@ where
 
 parser! {
     fn type_[I]()(I) -> Type
-    where [I: Stream<Item = char>]
+    where [I: Stream<Token = char>]
     {
         opaque!(type3())
     }
 
 }
 
-fn preds<'a, I>() -> impl Parser<Input = I, Output = Vec<Pred>> + 'a
+fn preds<'a, I>() -> impl Parser<I, Output = Vec<Pred>> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     sep_by1(pred().skip(blank()), attempt(string("&&").skip(blank())))
 }
 
-fn pred<'a, I>() -> impl Parser<Input = I, Output = Pred> + 'a
+fn pred<'a, I>() -> impl Parser<I, Output = Pred> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     choice!(
         attempt(
@@ -378,10 +376,10 @@ where
     )
 }
 
-fn ident<'a, I>() -> impl Parser<Input = I, Output = Ident>
+fn ident<'a, I>() -> impl Parser<I, Output = Ident>
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     recognize(
         satisfy(|c: char| c.is_alphabetic() || "_".contains(c)).with(skip_many(satisfy(
@@ -392,10 +390,10 @@ where
     .map(|s: String| Ident(s))
 }
 
-fn regex<'a, I>() -> impl Parser<Input = I, Output = String>
+fn regex<'a, I>() -> impl Parser<I, Output = String>
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     between(
         char('/'),
@@ -405,10 +403,10 @@ where
     .message("regex literal")
 }
 
-fn str_<'a, I>() -> impl Parser<Input = I, Output = String>
+fn str_<'a, I>() -> impl Parser<I, Output = String>
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     between(
         char('"'),
@@ -418,26 +416,26 @@ where
     .message("string literal")
 }
 
-fn number<'a, I>() -> impl Parser<Input = I, Output = usize>
+fn number<'a, I>() -> impl Parser<I, Output = usize>
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
-    from_str(many1::<String, _>(digit()))
+    from_str(many1::<String, I, _>(digit()))
 }
 
-fn blank<'a, I>() -> impl Parser<Input = I, Output = ()>
+fn blank<'a, I>() -> impl Parser<I, Output = ()>
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     spaces().skip(skip_many(attempt(comment().skip(spaces()))))
 }
 
-fn comment<'a, I>() -> impl Parser<Input = I, Output = ()>
+fn comment<'a, I>() -> impl Parser<I, Output = ()>
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     let slasla = between(string("//"), newline(), skip_many(satisfy(|c| c != '\n')))
         .map(|_| ())
@@ -450,11 +448,11 @@ where
     attempt(slasla).or(slaaster)
 }
 
-fn with_annot<'a, P, I>(p: P) -> impl Parser<Input = I, Output = Annot<P::Output>> + 'a
+fn with_annot<'a, P, I>(p: P) -> impl Parser<I, Output = Annot<P::Output>> + 'a
 where
-    I: Stream<Item = char> + 'a,
-    P: Parser<Input = I> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    P: Parser<I> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     optional(doc_comments().skip(blank()))
         .and(p)
@@ -501,10 +499,10 @@ fn attribute_line(s: &str) -> Line<'_> {
 }
 
 // to avoid type loop, manually define the function and return boxed type
-fn doc_comments<'a, I>() -> impl Parser<Input = I, Output = BTreeMap<String, String>>
+fn doc_comments<'a, I>() -> impl Parser<I, Output = BTreeMap<String, String>>
 where
-    I: Stream<Item = char> + 'a,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    I: Stream<Token = char> + 'a,
+    I::Error: ParseError<I::Token, I::Range, I::Position>,
 {
     fn process_docs(s: String) -> BTreeMap<String, String> {
         let mut desc = Vec::new();
