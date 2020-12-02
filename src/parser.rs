@@ -2,7 +2,7 @@
 //! ITEMS = ITEM+
 //! ITEM = TYPEDEF
 //!
-//! TYPEDEF = "type" IDENT =" TYPE ";"
+//! TYPEDEF = "type" IDENT ""=" TYPE ";"
 //!
 //! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
 //!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"

@@ -9,8 +9,7 @@
       }
     },
     "required": [
-      "code",
-      "message"
+      "code"
     ],
     "type": "object"
   },

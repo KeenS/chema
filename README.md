@@ -21,7 +21,7 @@ $ cargo install chema
 # Usage
 
 ```
-chema 0.0.6
+chema 0.0.8
 Sunrin SHIMURA (keen) <3han5chou7@gmail.com>
 An external DSL for JSON Schema
 USAGE:
@@ -54,7 +54,7 @@ TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
      | "(" TYPE ")" | STRING
 
 STRUCT = "struct" "{" (FIELD ",")+ "}"
-FIELD = IDENT ":" TYPE
+FIELD = IDENT "?"? ":" TYPE
 
 ENUM = "enum" "{" (VARIANT",")+ "}"
 VARIANT = STRING
