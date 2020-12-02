@@ -1,7 +1,8 @@
-# ???
+# 0.0.9
 ## New Feature
 
 * Improve error messages
+* New syntax: optional field namely `struct { field?: type }`
 
 ## Internal
 
