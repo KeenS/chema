@@ -159,5 +159,13 @@ fn compile_pred(_config: &Config, pred: Pred) -> Map<String, Value> {
 }
 
 fn collect_requied(fs: &Vec<Annot<Field>>) -> Vec<Ident> {
-    fs.iter().filter_map(|f| Some(f.t.ident.clone())).collect()
+    fs.iter()
+        .filter_map(|f| {
+            if f.t.is_optional {
+                None
+            } else {
+                Some(f.t.ident.clone())
+            }
+        })
+        .collect()
 }

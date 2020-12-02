@@ -2,7 +2,7 @@
 //! ITEMS = ITEM+
 //! ITEM = TYPEDEF
 //!
-//! TYPEDEF = "type" IDENT "=" TYPE ";"
+//! TYPEDEF = "type" IDENT =" TYPE ";"
 //!
 //! TYPE = "null" | "boolean" | "object" | "number" | "string" | "integer"
 //!      | IDENT | "[" TYPE "]" | STRUCT | ENUM | TYPE "?"
@@ -12,7 +12,7 @@
 //!      | "(" TYPE ")" | STRING
 //!
 //! STRUCT = "struct" "{" (FIELD ",")+ "}"
-//! FIELD = IDENT ":" TYPE
+//! FIELD = IDENT "?"? ":" TYPE
 //!
 //! ENUM = "enum" "{" (VARIANT",")+ "}"
 //! VARIANT = STRING
@@ -56,6 +56,7 @@ pub struct Annot<T> {
 }
 
 impl<T> Annot<T> {
+    #[allow(dead_code)]
     fn new(t: T) -> Self {
         Self {
             t,
@@ -86,6 +87,7 @@ pub struct Struct {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Field {
     pub ident: Ident,
+    pub is_optional: bool,
     pub type_: Type,
 }
 
@@ -182,6 +184,7 @@ where
     let field = struct_parser! {
         Field {
             ident: ident().skip(blank()),
+            is_optional: optional(char('?')).map(|o| o.is_some()),
             _: char(':').skip(blank()),
             type_: type_()
         }
