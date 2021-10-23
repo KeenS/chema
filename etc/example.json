@@ -1,4 +1,11 @@
 {
+  "angle": {
+    "description": "rotation angle",
+    "exclusiveMaximum": 360,
+    "minimum": 0,
+    "multipleOf": 90,
+    "type": "integer"
+  },
   "error": {
     "properties": {
       "code": {

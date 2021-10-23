@@ -152,6 +152,17 @@ fn compile_pred(_config: &Config, pred: Pred) -> Map<String, Value> {
     let kvs = match pred {
         Pred::MinLength(n) => vec![("minLength".to_string(), Value::Number(n.into()))],
         Pred::MaxLength(n) => vec![("maxLength".to_string(), Value::Number(n.into()))],
+        Pred::MinSize(n) => vec![("minimum".to_string(), Value::Number(n.into()))],
+        Pred::MaxSize(n) => vec![("maximum".to_string(), Value::Number(n.into()))],
+        Pred::ExclusiveMinSize(n) => {
+            vec![("exclusiveMinimum".to_string(), Value::Number(n.into()))]
+        }
+        Pred::ExclusiveMaxSize(n) => {
+            vec![("exclusiveMaximum".to_string(), Value::Number(n.into()))]
+        }
+        Pred::MultipleOf(n) => {
+            vec![(("multipleOf").to_string(), Value::Number(n.into()))]
+        }
         Pred::Format(format) => vec![("format".to_string(), Value::String(format.into()))],
         Pred::Match(regex) => vec![("pattern".to_string(), Value::String(regex.into()))],
     };

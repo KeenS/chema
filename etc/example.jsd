@@ -1,6 +1,9 @@
 /** id type */
 type id = integer;
 
+/** rotation angle */
+type angle = integer where 0<= it && it < 360 && it = 90 * n;
+
 /** @title User */
 type user = struct {
     /** unique id of the user */

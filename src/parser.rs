@@ -18,6 +18,9 @@
 //! VARIANT = STRING
 //!
 //! PRED = UNUMBER "<=" "length" | "length" <= UNUMBER
+//!      | UNUMBER "<" "it" | "it" < UNUMBER
+//!      | UNUMBER "<=" "it" | "it" <= UNUMBER
+//!      | "it" "=" UNUMBER "*" "n"
 //!      | "format" "=" STRING | "it" "=~" REGEX
 //!      | PRED && PRED
 //!
@@ -123,6 +126,11 @@ pub enum Type {
 pub enum Pred {
     MinLength(usize),
     MaxLength(usize),
+    MinSize(usize),
+    MaxSize(usize),
+    ExclusiveMinSize(usize),
+    ExclusiveMaxSize(usize),
+    MultipleOf(usize),
     Format(String),
     Match(String),
 }
@@ -375,6 +383,48 @@ where
                 string("length")
             )
                 .map(|(n, _, _)| Pred::MinLength(n))
+        ),
+        attempt(
+            (
+                string("it"),
+                blank().skip(string("<")).skip(blank()),
+                number()
+            )
+                .map(|(_, _, n)| Pred::ExclusiveMaxSize(n))
+        ),
+        attempt(
+            (
+                number(),
+                blank().skip(string("<")).skip(blank()),
+                string("it")
+            )
+                .map(|(n, _, _)| Pred::ExclusiveMinSize(n))
+        ),
+        attempt(
+            (
+                string("it"),
+                blank().skip(string("<=")).skip(blank()),
+                number()
+            )
+                .map(|(_, _, n)| Pred::MaxSize(n))
+        ),
+        attempt(
+            (
+                number(),
+                blank().skip(string("<=")).skip(blank()),
+                string("it")
+            )
+                .map(|(n, _, _)| Pred::MinSize(n))
+        ),
+        attempt(
+            (
+                string("it"),
+                blank().skip(string("=")).skip(blank()),
+                number().skip(blank()),
+                string("*").skip(blank()),
+                string("n")
+            )
+                .map(|(_, _, n, _, _)| Pred::MultipleOf(n))
         )
     )
 }
@@ -684,10 +734,12 @@ line */"#,
             Annot::new(Struct {
                 fields: vec![
                     Annot::new(Field {
+                        is_optional: false,
                         ident: Ident("id".into()),
                         type_: Type::Integer,
                     }),
                     Annot::new(Field {
+                        is_optional: false,
                         ident: Ident("name".into()),
                         type_: Type::String,
                     }),
@@ -701,14 +753,28 @@ line */"#,
             Annot::new(Struct {
                 fields: vec![
                     Annot::new(Field {
+                        is_optional: false,
                         ident: Ident("id".into()),
                         type_: Type::Integer,
                     }),
                     Annot::new(Field {
+                        is_optional: false,
                         ident: Ident("name".into()),
                         type_: Type::String,
                     }),
                 ],
+            })
+        );
+
+        assert_parsed!(
+            struct_(),
+            "struct {id?: integer}",
+            Annot::new(Struct {
+                fields: vec![Annot::new(Field {
+                    is_optional: true,
+                    ident: Ident("id".into()),
+                    type_: Type::Integer,
+                }),],
             })
         );
 
@@ -725,6 +791,7 @@ struct {
                     fields: vec![
                         Annot {
                             t: Field {
+                                is_optional: false,
                                 ident: Ident("id".into()),
                                 type_: Type::Integer,
                             },
@@ -734,6 +801,7 @@ struct {
                             },
                         },
                         Annot::new(Field {
+                            is_optional: false,
                             ident: Ident("name".into()),
                             type_: Type::String,
                         }),
@@ -753,10 +821,12 @@ struct {
                 t: (Struct {
                     fields: vec![
                         Annot::new(Field {
+                            is_optional: false,
                             ident: Ident("id".into()),
                             type_: Type::Integer,
                         }),
                         Annot::new(Field {
+                            is_optional: false,
                             ident: Ident("name".into()),
                             type_: Type::String,
                         }),
@@ -900,10 +970,12 @@ enum { \"OK\", \"NG\",}",
             Type::Struct(Annot::new(Struct {
                 fields: vec![
                     Annot::new(Field {
+                        is_optional: false,
                         ident: Ident("id".into()),
                         type_: Type::Integer,
                     }),
                     Annot::new(Field {
+                        is_optional: false,
                         ident: Ident("name".into()),
                         type_: Type::String,
                     }),
@@ -946,6 +1018,22 @@ enum { \"OK\", \"NG\",}",
     }
 
     #[test]
+    fn test_type_where_number() {
+        assert_parsed!(
+            type_(),
+            r#"integer where 1 <= it &&it<100 && it = 5* n"#,
+            Type::Where(
+                Box::new(Type::Integer),
+                vec![
+                    Pred::MinSize(1),
+                    Pred::ExclusiveMaxSize(100),
+                    Pred::MultipleOf(5),
+                ]
+            )
+        );
+    }
+
+    #[test]
     fn test_type_or() {
         assert_parsed!(
             type_(),
@@ -962,12 +1050,14 @@ enum { \"OK\", \"NG\",}",
             Type::And(vec![
                 Type::Struct(Annot::new(Struct {
                     fields: vec![Annot::new(Field {
+                        is_optional: false,
                         ident: Ident("id".into()),
                         type_: Type::Integer,
                     }),],
                 })),
                 Type::Struct(Annot::new(Struct {
                     fields: vec![Annot::new(Field {
+                        is_optional: false,
                         ident: Ident("name".into()),
                         type_: Type::String,
                     }),],
@@ -1023,10 +1113,12 @@ enum { \"OK\", \"NG\",}",
             Type::Struct(Annot::new(Struct {
                 fields: vec![
                     Annot::new(Field {
+                        is_optional: false,
                         ident: Ident("code".into()),
                         type_: Type::Const(Const::String("not_json".into())),
                     }),
                     Annot::new(Field {
+                        is_optional: false,
                         ident: Ident("message".into()),
                         type_: Type::String,
                     }),
@@ -1055,10 +1147,12 @@ enum { \"OK\", \"NG\",}",
                     type_: Type::Struct(Annot::new(Struct {
                         fields: vec![
                             Annot::new(Field {
+                                is_optional: false,
                                 ident: Ident("id".into()),
                                 type_: Type::Ident(Ident("id".into())),
                             }),
                             Annot::new(Field {
+                                is_optional: false,
                                 ident: Ident("name".into()),
                                 type_: Type::String,
                             }),
@@ -1089,6 +1183,7 @@ type user = struct {
                         fields: vec![
                             Annot {
                                 t: Field {
+                                    is_optional: false,
                                     ident: Ident("id".into()),
                                     type_: Type::Ident(Ident("id".into())),
                                 },
@@ -1098,6 +1193,7 @@ type user = struct {
                                 },
                             },
                             Annot::new(Field {
+                                is_optional: false,
                                 ident: Ident("name".into()),
                                 type_: Type::String,
                             }),
@@ -1122,9 +1218,11 @@ type person = struct {
                     ident: Ident("person".into()),
                     type_: Type::Struct(Annot::new(Struct {
                         fields: vec![Annot::new(Field {
+                            is_optional: false,
                             ident: Ident("id".into()),
                             type_: Type::Struct(Annot::new(Struct {
                                 fields: vec![Annot::new(Field {
+                                    is_optional: false,
                                     ident: Ident("value".into()),
                                     type_: Type::Integer,
                                 }),],
@@ -1152,10 +1250,12 @@ type person = struct {
                     type_: Type::Struct(Annot::new(Struct {
                         fields: vec![
                             Annot::new(Field {
+                                is_optional: false,
                                 ident: Ident("name".into()),
                                 type_: Type::String,
                             }),
                             Annot::new(Field {
+                                is_optional: false,
                                 ident: Ident("sex".into()),
                                 type_: Type::Enum(Annot::new(Enum {
                                     variants: vec![Variant("M".into()), Variant("F".into())],
@@ -1193,10 +1293,12 @@ type user = struct {id: id, name: string};
                         type_: Type::Struct(Annot::new(Struct {
                             fields: vec![
                                 Annot::new(Field {
+                                    is_optional: false,
                                     ident: Ident("id".into()),
                                     type_: Type::Ident(Ident("id".into())),
                                 }),
                                 Annot::new(Field {
+                                    is_optional: false,
                                     ident: Ident("name".into()),
                                     type_: Type::String,
                                 }),
